@@ -1,5 +1,11 @@
 # FastMail Search
 
+[![Latest Release](https://img.shields.io/badge/Release-v1.0.6-0078D4)](https://github.com/dipanki1111/FastMailSearch/releases/tag/v1.0.6)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D4)](#system-requirements)
+[![Outlook](https://img.shields.io/badge/Outlook-Classic%20Desktop%20(2016--365)-0078D4)](#system-requirements)
+[![Tests](https://img.shields.io/badge/Tests-661%20Passed%20%7C%200%20Failed-success)](#run-automated-tests)
+[![License](https://img.shields.io/badge/License-Proprietary%20--%20All%20Rights%20Reserved-red)](LICENSE)
+
 **FastMail Search** is a standalone Classic Outlook for Windows add-in and desktop email search engine powered by a local SQLite FTS5 database and modern WPF user interface. It delivers sub-second full-text searches across hundreds of thousands of indexed emails without relying on cloud services, external servers, or web APIs.
 
 ---
@@ -145,7 +151,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Build-ReleasePackage.ps1 -Ver
 
 - **Source Inspection**: This repository is source-available for technical review, security auditing, and code inspection.
 - **Pull Requests**: Because FastMail Search is proprietary commercial software, external pull requests and code contributions cannot be accepted without prior written agreement and copyright assignment.
-- **Issues & Feedback**: Bug reports, feature suggestions, and usability feedback are welcomed via [GitHub Issues](https://github.com/dipanki111/FastMailSearch/issues).
+- **Issues & Feedback**: Bug reports, feature suggestions, and usability feedback are welcomed via [GitHub Issues](https://github.com/dipanki1111/FastMailSearch/issues).
 
 ---
 
@@ -154,4 +160,5 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Build-ReleasePackage.ps1 -Ver
 - **Security Disclosure**: Please report any security vulnerabilities responsibly according to [SECURITY.md](SECURITY.md).
 - **Support Contact**: [developer.diptesh@gmail.com](mailto:developer.diptesh@gmail.com)
 - **Official Website**: [https://fastmailsearch.com](https://fastmailsearch.com) (or browse local `/website/` documentation)
-- **GitHub Repository**: [https://github.com/dipanki111/FastMailSearch](https://github.com/dipanki111/FastMailSearch)
+- **GitHub Repository**: [https://github.com/dipanki1111/FastMailSearch](https://github.com/dipanki1111/FastMailSearch)
+- **Latest Release**: [v1.0.6 (Release Notes)](https://github.com/dipanki1111/FastMailSearch/releases/tag/v1.0.6)

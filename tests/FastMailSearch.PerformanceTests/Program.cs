@@ -158,7 +158,8 @@ namespace FastMailSearch.PerformanceTests
             foreach (var burst in burstSizes)
             {
                 var mockOutlook = new MockOutlookAdapter();
-                var indexer = new EmailIndexerService(mockOutlook, repo);
+                var mockLicensing = new MockPerformanceLicensingService();
+                var indexer = new EmailIndexerService(mockOutlook, repo, mockLicensing);
 
                 for (int i = 1; i <= burst; i++)
                 {
@@ -208,6 +209,14 @@ namespace FastMailSearch.PerformanceTests
             Console.WriteLine($"\nReport saved to: {reportPath}");
 
             try { File.Delete(benchDbPath); } catch { }
+        }
+
+        private class MockPerformanceLicensingService : ILicensingService
+        {
+            public LicenseStatus GetStatus() => LicenseStatus.Valid;
+            public int GetTrialDaysRemaining() => 30;
+            public Task<bool> ActivateAsync(string licenseKey) => Task.FromResult(true);
+            public string GetHardwareId() => "MOCK-PERF-HWID";
         }
 
         private class MockOutlookAdapter : IOutlookAdapter

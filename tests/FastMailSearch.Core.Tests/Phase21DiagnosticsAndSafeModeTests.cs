@@ -238,7 +238,7 @@ namespace FastMailSearch.Core.Tests
         #endregion
 
         #region Test 7: Log Rotation and Retention
-        [Fact(Skip = "Flaky due to static Logger in parallel test execution")]
+        [Fact]
         public void Test07_Log_Rotation_And_Retention_Prunes_Old_Files()
         {
             string testLogDir = Path.Combine(Path.GetTempPath(), $"FMS_Logs_{Guid.NewGuid():N}");
@@ -246,17 +246,19 @@ namespace FastMailSearch.Core.Tests
 
             try
             {
-                Logger.Initialize(testLogDir);
-
                 string oldLog = Path.Combine(testLogDir, "FastMailSearch_20200101.log");
                 File.WriteAllText(oldLog, "Old log entry");
                 DateTime oldDate = DateTime.Now.AddDays(-20);
                 File.SetLastWriteTime(oldLog, oldDate);
                 File.SetCreationTime(oldLog, oldDate);
 
+                string recentLog = Path.Combine(testLogDir, "FastMailSearch_Recent.log");
+                File.WriteAllText(recentLog, "Recent log entry");
+
                 Logger.CleanupOldLogs(14, testLogDir);
 
-                Assert.False(File.Exists(oldLog));
+                Assert.False(File.Exists(oldLog), "Old log exceeding retention window should be deleted.");
+                Assert.True(File.Exists(recentLog), "Recent log within retention window should be preserved.");
             }
             finally
             {

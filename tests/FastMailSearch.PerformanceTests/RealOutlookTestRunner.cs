@@ -32,14 +32,15 @@ namespace FastMailSearch.PerformanceTests
 
             Console.WriteLine($"Outlook Version: {outlookAdapter.GetOutlookVersion()} ({outlookAdapter.GetOfficeBitness()})");
 
-            string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FastMailSearch", "FastMailSearch.db");
+            string dbPath = AppSettings.GetDefaultDatabasePath();
             Console.WriteLine($"Database Path: {dbPath}");
 
             var dbFactory = new DatabaseConnectionFactory(dbPath);
             var repo = new SqliteEmailRepository(dbFactory);
             repo.InitializeDatabase();
 
-            var indexer = new EmailIndexerService(outlookAdapter, repo);
+            var licensing = new FastMailSearch.Infrastructure.Services.LicensingService();
+            var indexer = new EmailIndexerService(outlookAdapter, repo, licensing);
 
             Console.WriteLine("\n[Step 1] Fetching Real Mailboxes & Folders...");
             var mailboxes = outlookAdapter.GetMailboxes();

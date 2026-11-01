@@ -6,7 +6,7 @@
 
 ## Technical Features
 
-- **Classic Outlook Support**: Targets Outlook Classic for Windows (Office 2016 / 2019 / 2021 / 365 Desktop).
+- **Classic Outlook Integration**: Deep COM integration with Outlook Classic for Windows (Office 2016 / 2019 / 2021 / 365 Desktop).
 - **SQLite FTS5 Full-Text Search**: Local FTS5 database stored by default at `%USERPROFILE%\Documents\FastMailSearch\FastMailSearch.db`.
 - **Flexible Search Syntax**:
   - Full-text keywords: `invoice ABC`, `"exact phrase"`
@@ -19,14 +19,32 @@
 
 ---
 
-## Commercial Licensing
+## Compatibility & System Requirements
 
-- **License Model**: Proprietary — All Rights Reserved. (See [LICENSE](LICENSE) for full terms).
-- **Free Evaluation**: Fully functional 30-day free trial with unrestricted local email search and indexing.
-- **Commercial License**: ₹499 for a 1-year license (includes software usage and updates for 1 year from the date of purchase).
-- **Offline Cryptographic Activation**: Licensing verification operates 100% offline using RSA cryptographic signatures bound to a local Hardware ID.
-- **No Telemetry or Tracking**: No automatic online phone-home, no background analytics, and no recurring billing or automatic renewal.
-- **Source Code Notice**: Access to this source code repository is provided solely for authorized review and inspection. No open-source license is granted.
+### Supported Environments
+- **Operating System**: Windows 10 or Windows 11 (64-bit recommended)
+- **Email Client**: Classic Microsoft Outlook for Windows (Win32 COM / VSTO host)
+  - Microsoft Office 2016 (32-bit & 64-bit)
+  - Microsoft Office 2019 (32-bit & 64-bit)
+  - Microsoft Office 2021 (32-bit & 64-bit)
+  - Microsoft 365 Desktop Apps (32-bit & 64-bit)
+- **Runtimes**: .NET Framework 4.8 and .NET Desktop Runtime 8.0+
+
+### Unsupported Environments
+- **New Outlook for Windows**: The modern web-based / WebView2 Outlook client does not support Win32 COM/VSTO add-in APIs.
+- **Cross-Platform**: Outlook for Mac, Outlook on the Web (OWA), and Outlook Mobile (iOS / Android) are not supported.
+
+---
+
+## Public Source & Commercial Licensing
+
+- **License Model**: Proprietary — All Rights Reserved. (See [LICENSE](LICENSE) for full legal terms).
+- **Public Source Availability**: Access to this source code repository is provided solely for authorized evaluation, technical review, and security inspection. No open-source license (such as MIT, Apache, or GPL) is granted.
+- **Proprietary Licensing Isolation**: To protect commercial license verification integrity, the offline cryptographic license key generator (`FastMailSearch.LicenseGenerator`) and master private signing keys are maintained privately and are excluded from this repository.
+- **Free Evaluation**: FastMail Search includes a fully functional 30-day evaluation trial with unrestricted local search and indexing capabilities.
+- **Commercial License**: ₹499 for a 1-year commercial license (includes software usage and updates for 1 year from the date of purchase).
+- **100% Offline Cryptographic Activation**: Licensing verification operates entirely offline using RSA cryptographic signatures bound to a local Hardware ID.
+- **No Telemetry or Phone-Home**: Zero analytics, zero usage tracking, and no background network connections.
 
 ---
 
@@ -35,7 +53,7 @@
 ```
 FastMailSearch/
 │
-├── FastMailSearch.slnx                # Visual Studio solution file
+├── FastMailSearch.slnx                # Visual Studio solution file (all public components)
 ├── Directory.Build.props              # Harmonized assembly version & build metadata
 ├── LICENSE                            # Proprietary software license agreement
 ├── SECURITY.md                        # Security policy & vulnerability reporting guide
@@ -61,8 +79,13 @@ FastMailSearch/
 │   ├── Install-FastMailSearch.ps1     # Standalone registration & installation script
 │   └── Uninstall-FastMailSearch.ps1   # Clean uninstallation & registry cleanup script
 │
+├── website/                           # Static documentation & product website
+│   ├── css/                           # Product site stylesheets
+│   ├── assets/                        # Web icons and branding assets
+│   └── *.html                         # Documentation pages (FAQ, install, support, smartscreen)
+│
 └── docs/
-    └── FINAL_VERIFICATION.md          # Architectural verification log & measured performance metrics
+    └── FINAL_VERIFICATION.md          # Regression test & verification log for pagination hardening
 ```
 
 ---
@@ -70,22 +93,35 @@ FastMailSearch/
 ## Developer Setup & Build Instructions
 
 ### Prerequisites
-- Windows 10 or Windows 11 (64-bit recommended)
-- Classic Microsoft Outlook (Office 365, 2021, 2019, 2016 Desktop)
-- Visual Studio 2022 (with .NET Desktop Development, Office/VSTO, and .NET Framework 4.8 targeting pack)
+- Windows 10 or Windows 11 (64-bit)
+- Visual Studio 2022 (Community, Professional, or Enterprise) with:
+  - `.NET Desktop Development` workload
+  - `Office/SharePoint development` workload (Visual Studio Tools for Office / COM)
+  - `.NET Framework 4.8 Targeting Pack`
 - .NET SDK 8.0 or higher
+- Classic Microsoft Outlook installed locally (for add-in debugging)
 
 ### Build the Solution
 Because FastMailSearch targets both modern .NET 8 and .NET Framework 4.8 with COM interop, compile using Visual Studio MSBuild:
 ```powershell
-msbuild FastMailSearch.slnx /p:Configuration=Release /v:m
+& "C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe" FastMailSearch.slnx /p:Configuration=Release /v:m
 ```
+*(Or use `msbuild` from a Visual Studio Developer Command Prompt / PowerShell).*
 
 ### Run Automated Tests
-Execute the unit and database test suites across both supported frameworks (.NET 8 and .NET Framework 4.8):
+Execute the unit and database test suites across both supported runtime targets (.NET 8 and .NET Framework 4.8):
 ```powershell
+# Core unit tests (635 tests across net8.0 and net48)
 dotnet test tests/FastMailSearch.Core.Tests/FastMailSearch.Core.Tests.csproj -c Release --no-build
+
+# Database & SQLite FTS5 tests (26 tests across net8.0 and net48)
 dotnet test tests/FastMailSearch.Database.Tests/FastMailSearch.Database.Tests.csproj -c Release --no-build
+```
+
+### Synthetic PST Integration Test
+To run integration tests against a synthetic test store without touching personal Outlook mailboxes:
+```powershell
+& ".\tools\SyntheticPstIntegrationTest\bin\Release\net48\SyntheticPstIntegrationTest.exe"
 ```
 
 ### Build the Standalone Release Package
@@ -96,16 +132,26 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Build-ReleasePackage.ps1 -Ver
 
 ---
 
-## Storage & Logs Location
+## Storage & Configuration
 
 - **SQLite Search Database**: `%USERPROFILE%\Documents\FastMailSearch\FastMailSearch.db`
   *(Path can be customized via the `FASTMAILSEARCH_DB_PATH` environment variable)*
 - **Application Diagnostic Logs**: `%LOCALAPPDATA%\FastMailSearch\Logs\`
+- **Database Connection Strategy**: Configured with WAL (Write-Ahead Logging) mode, synchronous NORMAL, and connection pooling for concurrent UI search and background indexing.
+
+---
+
+## Contributions & Issue Reporting
+
+- **Source Inspection**: This repository is source-available for technical review, security auditing, and code inspection.
+- **Pull Requests**: Because FastMail Search is proprietary commercial software, external pull requests and code contributions cannot be accepted without prior written agreement and copyright assignment.
+- **Issues & Feedback**: Bug reports, feature suggestions, and usability feedback are welcomed via [GitHub Issues](https://github.com/dipanki111/FastMailSearch/issues).
 
 ---
 
 ## Security & Support
 
 - **Security Disclosure**: Please report any security vulnerabilities responsibly according to [SECURITY.md](SECURITY.md).
-- **Support Email**: [developer.diptesh@gmail.com](mailto:developer.diptesh@gmail.com)
+- **Support Contact**: [developer.diptesh@gmail.com](mailto:developer.diptesh@gmail.com)
+- **Official Website**: [https://fastmailsearch.com](https://fastmailsearch.com) (or browse local `/website/` documentation)
 - **GitHub Repository**: [https://github.com/dipanki111/FastMailSearch](https://github.com/dipanki111/FastMailSearch)

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>FastMailSearch.Database.Tests</RootNamespace>
+    <AssemblyName>FastMailSearch.Database.Tests</AssemblyName>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.3" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.6" />
+    <PackageReference Include="xunit" Version="2.7.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FastMailSearch.Core\FastMailSearch.Core.csproj" />
+    <ProjectReference Include="..\..\src\FastMailSearch.Infrastructure\FastMailSearch.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="CopyNativeSqlite" AfterTargets="Build">
+    <Copy SourceFiles="$(OutDir)runtimes\win-x64\native\e_sqlite3.dll" DestinationFolder="$(OutDir)" Condition="Exists('$(OutDir)runtimes\win-x64\native\e_sqlite3.dll')" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

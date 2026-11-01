@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
+  <ribbon>
+    <tabs>
+      <tab idMso="TabMail">
+        <group id="grpFastMailSearch" label="FastMail Search">
+          <button id="btnOpenFastMailSearch"
+                  label="FastMail Search"
+                  size="large"
+                  imageMso="Search"
+                  supertip="Search your Outlook emails instantly with FastMail Search local SQLite index."
+                  onAction="OnOpenSearchWindowClicked" />
+          <button id="btnBackfillActiveStore"
+                  label="Backfill POP Mailbox"
+                  size="large"
+                  imageMso="DatabaseSyncDatabase"
+                  supertip="Safely index unindexed emails from active Outlook POP PST store into FastMail Search."
+                  onAction="OnBackfillActiveStoreClicked" />
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

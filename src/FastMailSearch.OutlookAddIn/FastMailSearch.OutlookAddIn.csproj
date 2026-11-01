@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <RootNamespace>FastMailSearch.OutlookAddIn</RootNamespace>
+    <AssemblyName>FastMailSearch.OutlookAddIn</AssemblyName>
+    <OutputType>Library</OutputType>
+    <UseWPF>true</UseWPF>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Extensibility">
+      <HintPath>C:\Program Files (x86)\Common Files\Microsoft Shared\MSEnv\PublicAssemblies\extensibility.dll</HintPath>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FastMailSearch.Core\FastMailSearch.Core.csproj" />
+    <ProjectReference Include="..\FastMailSearch.Infrastructure\FastMailSearch.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Office.Interop.Outlook" Version="15.0.4797.1004">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </PackageReference>
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <COMReference Include="Microsoft.Office.Core">
+      <Guid>{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}</Guid>
+      <VersionMajor>2</VersionMajor>
+      <VersionMinor>8</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>primary</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Ribbon\FastMailRibbon.xml" />
+  </ItemGroup>
+</Project>

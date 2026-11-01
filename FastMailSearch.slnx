@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FastMailSearch.Core/FastMailSearch.Core.csproj" />
+    <Project Path="src/FastMailSearch.Infrastructure/FastMailSearch.Infrastructure.csproj" />
+    <Project Path="src/FastMailSearch.OutlookAddIn/FastMailSearch.OutlookAddIn.csproj" />
+    <Project Path="src/FastMailSearch.UI/FastMailSearch.UI.csproj" />
+    <Project Path="src/FastMailSearch.Setup/FastMailSearch.Setup.csproj" />
+    <Project Path="src/FastMailSearch.LicenseGenerator/FastMailSearch.LicenseGenerator.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FastMailSearch.Core.Tests/FastMailSearch.Core.Tests.csproj" />
+    <Project Path="tests/FastMailSearch.Database.Tests/FastMailSearch.Database.Tests.csproj" />
+    <Project Path="tests/FastMailSearch.PerformanceTests/FastMailSearch.PerformanceTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <RootNamespace>FastMailSearch.UI</RootNamespace>
+    <AssemblyName>FastMailSearch.UI</AssemblyName>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FastMailSearch.Core\FastMailSearch.Core.csproj" />
+    <ProjectReference Include="..\FastMailSearch.Infrastructure\FastMailSearch.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

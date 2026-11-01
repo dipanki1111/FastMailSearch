@@ -1,0 +1,169 @@
+# =============================================================================
+# FastMailSearch .gitignore
+# GitHub Public Release Source-Control Exclusion Policy
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. Visual Studio / IDE Caches and User Settings
+# -----------------------------------------------------------------------------
+.vs/
+*.suo
+*.user
+*.userosv
+*.userprefs
+*.sln.docstates
+*.pidb
+*.booproj
+*.svclog
+
+# -----------------------------------------------------------------------------
+# 2. Build Outputs, Intermediates & Generated Artifacts
+# -----------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Aa]rms/
+[Aa]rms64/
+generated/
+*.pdb
+*.idb
+*.ilk
+
+# -----------------------------------------------------------------------------
+# 3. Compiled Executables, Libraries, Packages, and Archives
+# -----------------------------------------------------------------------------
+*.exe
+*.dll
+*.msi
+*.msix
+*.appx
+*.zip
+*.7z
+*.tar
+*.gz
+*.bak
+
+# Explicitly ignore compiled embedded payloads and build staging
+src/FastMailSearch.Setup/Payload.zip
+Release/
+MSIX-Poc/
+
+# -----------------------------------------------------------------------------
+# 4. Databases, Local Storage, WAL, SHM, and Mail Stores
+# -----------------------------------------------------------------------------
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.pst
+*.ost
+
+# Isolate temp_query directory (contains 528MB real email database copy)
+temp_query/
+
+# -----------------------------------------------------------------------------
+# 5. Application and Diagnostics Logs
+# -----------------------------------------------------------------------------
+*.log
+logs/
+_logs/
+*.dmp
+*.mdmp
+*.crash
+
+# Root diagnostic logs
+build_warnings.log
+core_tests.log
+test_output.log
+
+# -----------------------------------------------------------------------------
+# 6. Secrets, Certificates, Private Keys, and Environment Variables
+# -----------------------------------------------------------------------------
+.env
+.env.*
+*.key
+*.pfx
+*.p12
+*.pem
+*.cer
+*.crt
+*private_key*.xml
+*secret*
+
+# -----------------------------------------------------------------------------
+# 7. Local Scratch, Staging, Testing and Backup Directories
+# -----------------------------------------------------------------------------
+scratch/
+test_working_copy/
+temp_payload_audit/
+backup-*/
+
+# -----------------------------------------------------------------------------
+# 8. Temporary Diagnostic and Ad-Hoc Scripts
+# -----------------------------------------------------------------------------
+query_live_db.py
+query_docs.py
+regasm_output.reg
+PHASE21_REAL_OUTLOOK_TEST.md
+PHASE22_MULTI_SYSTEM_TEST.md
+
+# -----------------------------------------------------------------------------
+# 9. Test Evidence, Code Coverage & Operational Artifacts
+# -----------------------------------------------------------------------------
+*.trx
+*.coverage
+*.coveragexml
+*.reg
+docs/test-evidence.trx
+
+# -----------------------------------------------------------------------------
+# 10. Proprietary Offline License Generator
+# -----------------------------------------------------------------------------
+/src/FastMailSearch.LicenseGenerator/
+
+# -----------------------------------------------------------------------------
+# 11. Internal Sprint, Phase, and Audit Reports
+# -----------------------------------------------------------------------------
+docs/Code-Signing-Publishing-Readiness-Report.md
+docs/Commercial-Acceptance-Evidence-Audit.md
+docs/Commercial-Acceptance-Test-Report.md
+docs/Final-Installer-Verification-Report.md
+docs/Final-Trial-Protection-Audit.md
+docs/LastRunTime-Fix-Report.md
+docs/Phase3-Licensing-Enforcement-Report.md
+docs/Pre-Release-*.md
+docs/Website-Blockers-Fix-Report.md
+
+# -----------------------------------------------------------------------------
+# 12. Internal Diagnostic and Ad-Hoc Scripts
+# -----------------------------------------------------------------------------
+scripts/build_and_register.ps1
+scripts/check_event_log.ps1
+scripts/Debug-FastMailSearch-Ribbon.ps1
+scripts/Debug-FastMailSearchUI.ps1
+scripts/Diagnose-FastMailSearch.ps1
+scripts/Diagnose-OutlookComAddin.ps1
+scripts/Diagnose-OutlookLoad.ps1
+scripts/find_system_runtime.ps1
+scripts/register_minimal.ps1
+scripts/RunRealOutlookTest.cs
+scripts/script_check.ps1
+scripts/Test-OutlookAddIn.ps1
+scripts/test_outlook_com.ps1
+scripts/unregister_addin.ps1
+scripts/Verify-FastMailSearchInstallation.ps1
+scripts/Verify-FastMailSearchPayloadAudit.ps1
+scripts/Verify-FastMailSearchSignature.ps1
+
+# -----------------------------------------------------------------------------
+# 13. Internal Diagnostic and Troubleshooting Tools
+# -----------------------------------------------------------------------------
+tools/ComActivationTest/
+tools/DiagOutlook/
+tools/OutlookConnectionTest/
+tools/PopBackfillRunner/
+
+
+

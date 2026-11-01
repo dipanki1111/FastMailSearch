@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support | FastMail Search</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+</head>
+<body>
+  <header>
+    <a href="index.html" class="logo">
+      <img src="assets/favicon.ico" alt="FastMail Search Logo">
+      FastMail Search
+    </a>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="install.html">Install Guide</a></li>
+        <li><a href="smartscreen.html">SmartScreen</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="support.html" style="color: var(--primary-color);">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Help & Support</h1>
+    <p class="hero-subtitle">Get help with FastMail Search and report technical issues.</p>
+
+    <div class="card">
+      <h2>Troubleshooting Basics</h2>
+      <p>Before contacting support, please verify the following:</p>
+      <ul>
+        <li>You are running <strong>Classic Microsoft Outlook</strong> (not the "New Outlook").</li>
+        <li>You have completely closed and restarted Outlook after running the installer.</li>
+        <li>You have verified that the add-in is enabled via <strong>File &gt; Options &gt; Add-ins &gt; COM Add-ins</strong>.</li>
+        <li>You have reviewed our <a href="faq.html">Frequently Asked Questions</a>.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Generating Diagnostic Logs</h2>
+      <p>If you are experiencing crashes, indexing failures, or unexpected UI behavior, please generate a diagnostics package.</p>
+      <ol>
+        <li>Open FastMail Search via the Outlook Ribbon.</li>
+        <li>Click the <strong>Help & Diagnostics</strong> button.</li>
+        <li>Click the <strong>Export Diagnostics Package</strong> button.</li>
+        <li>Save the generated <code>.zip</code> file to your desktop.</li>
+      </ol>
+      <div class="alert">
+        The diagnostic package contains application logs and schema information but safely obfuscates or excludes sensitive email content. However, please review the `.log` files inside the zip if you have strict privacy concerns before sending them to us.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Contacting Us</h2>
+      <p>Please email our support team and attach the generated Diagnostic <code>.zip</code> file (if applicable) alongside a detailed description of your problem.</p>
+      
+      <p><strong>Support Email:</strong> <a href="mailto:developer.diptesh@gmail.com">developer.diptesh@gmail.com</a></p>
+      <p><strong>GitHub Repository:</strong> <a href="https://github.com/dipanki111/FastMailSearch" target="_blank" rel="noopener">https://github.com/dipanki111/FastMailSearch</a></p>
+      
+      <p style="margin-top: 1rem;">When reporting an issue, please include:</p>
+      <ul>
+        <li>Your Windows OS version (e.g., Windows 11 23H2).</li>
+        <li>Your Classic Outlook version and bitness (e.g., Office 365 64-bit).</li>
+        <li>A clear description of what you were doing when the issue occurred.</li>
+      </ul>
+    </div>
+
+  </main>
+
+  <footer>
+    <p>&copy; 2026 FastMail Search. All rights reserved. | <a href="https://github.com/dipanki111/FastMailSearch" target="_blank" rel="noopener">GitHub</a> | <a href="privacy-policy.html">Privacy Policy</a></p>
+  </footer>
+</body>
+</html>

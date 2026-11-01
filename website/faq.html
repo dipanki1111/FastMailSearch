@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frequently Asked Questions | FastMail Search</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+</head>
+<body>
+  <header>
+    <a href="index.html" class="logo">
+      <img src="assets/favicon.ico" alt="FastMail Search Logo">
+      FastMail Search
+    </a>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="install.html">Install Guide</a></li>
+        <li><a href="smartscreen.html">SmartScreen</a></li>
+        <li><a href="faq.html" style="color: var(--primary-color);">FAQ</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Frequently Asked Questions</h1>
+
+    <div class="card">
+      <details>
+        <summary>What is FastMail Search?</summary>
+        <p>FastMail Search is a high-performance local full-text search add-in exclusively for Classic Microsoft Outlook. It rapidly indexes your emails in an embedded, fully private SQLite database without relying on external cloud services.</p>
+      </details>
+
+      <details>
+        <summary>Which Outlook versions are supported?</summary>
+        <p>FastMail Search supports Classic Microsoft Outlook for Windows (Office 365, 2019, 2016, and some earlier versions running on .NET Framework 4.8).</p>
+      </details>
+
+      <details>
+        <summary>Does it work with 32-bit and 64-bit Outlook?</summary>
+        <p>Yes. The architecture handles COM registration natively, ensuring the correct .NET environment loads automatically for both 32-bit and 64-bit Classic Outlook installations.</p>
+      </details>
+
+      <details>
+        <summary>Is Outlook Classic required?</summary>
+        <p>Yes. The add-in utilizes COM extensibility to integrate directly into the Outlook ribbon. The "New Outlook for Windows" (which is essentially a web wrapper) does not support classic COM Add-ins and is therefore <strong>not supported</strong>.</p>
+      </details>
+
+      <details>
+        <summary>How do I install FastMail Search?</summary>
+        <p>Close Classic Outlook, download the official installer, and run it. Please refer to our step-by-step <a href="install.html">Installation Guide</a>.</p>
+      </details>
+
+      <details>
+        <summary>Why does Windows show a SmartScreen warning?</summary>
+        <p>The installer currently lacks an Authenticode Digital Signature. Microsoft flags all unsigned software. Please read the <a href="smartscreen.html">SmartScreen Warning Guide</a> for safe validation steps.</p>
+      </details>
+
+      <details>
+        <summary>How do I verify the installer?</summary>
+        <p>You can verify the installer's integrity by comparing its SHA-256 hash using Windows PowerShell. The hash must match the signature listed on our Download page. See the <a href="install.html">Installation Guide</a> for the exact command.</p>
+      </details>
+
+      <details>
+        <summary>What should I do if the Outlook ribbon is missing?</summary>
+        <p>Sometimes Outlook automatically disables add-ins if it detects slow performance during startup. Go to <strong>File &gt; Options &gt; Add-ins &gt; COM Add-ins (Manage) &gt; Go...</strong> and ensure the checkbox next to FastMail Search is ticked.</p>
+      </details>
+
+      <details>
+        <summary>How does the 30-day trial work?</summary>
+        <p>FastMail Search includes a fully functional 30-day free trial with unrestricted local email search and background indexing. No credit card or registration is required to start your trial.</p>
+      </details>
+
+      <details>
+        <summary>How do I activate a license?</summary>
+        <p>FastMail Search operates 100% offline without online telemetry or activation servers. To purchase an annual license, launch FastMail Search via the Outlook ribbon, copy your Hardware ID from the Activation dialog, and email your purchase request to our team at <a href="mailto:developer.diptesh@gmail.com">developer.diptesh@gmail.com</a>. You will receive an offline RSA-signed license key. Enter this key into the Activation dialog to unlock the software.</p>
+      </details>
+
+      <details>
+        <summary>What does FastMail Search cost?</summary>
+        <p>FastMail Search is available for <strong>₹499 for a 1-year license</strong>. The license includes 1 year of software usage and updates from the date of purchase. (License renewal policy is to be determined; no automatic renewal or recurring billing is implemented.)</p>
+      </details>
+
+      <details>
+        <summary>Will uninstalling delete my indexed email database?</summary>
+        <p>No. By default, running the uninstaller removes the binaries and Registry keys, but preserves your user data (<code>FastMailSearch.db</code>) and licensing info inside <code>%USERPROFILE%\Documents\FastMailSearch</code>. If you reinstall later, your index will be restored.</p>
+      </details>
+
+      <details>
+        <summary>How can I contact support?</summary>
+        <p>If you encounter bugs, crashes, or indexing failures, please visit the <a href="support.html">Support</a> page for details on how to generate diagnostic logs and contact our team, or visit our <a href="https://github.com/dipanki111/FastMailSearch" target="_blank" rel="noopener">GitHub Repository</a>.</p>
+      </details>
+    </div>
+
+  </main>
+
+  <footer>
+    <p>&copy; 2026 FastMail Search. All rights reserved. | <a href="https://github.com/dipanki111/FastMailSearch" target="_blank" rel="noopener">GitHub</a> | <a href="privacy-policy.html">Privacy Policy</a></p>
+  </footer>
+</body>
+</html>

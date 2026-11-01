@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Installation Guide | FastMail Search</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+</head>
+<body>
+  <header>
+    <a href="index.html" class="logo">
+      <img src="assets/favicon.ico" alt="FastMail Search Logo">
+      FastMail Search
+    </a>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="install.html" style="color: var(--primary-color);">Install Guide</a></li>
+        <li><a href="smartscreen.html">SmartScreen</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Installation Guide</h1>
+    <p>Follow these steps to safely install and configure FastMail Search for Classic Microsoft Outlook.</p>
+
+    <div class="card">
+      <h2>1. Download the Installer</h2>
+      <p>Download the official installer (<code>FastMailSearch-v1.0.6-Store-Setup.exe</code>) from the <a href="index.html#download">Download Section</a>. Ensure you download the file only from the official source provided on this website.</p>
+    </div>
+
+    <div class="card">
+      <h2>2. Verify the Checksum (Optional but Recommended)</h2>
+      <p>Before running the installer, verify the file's SHA-256 checksum to ensure it was not corrupted during download.</p>
+      <p>Open PowerShell and run the following command:</p>
+      <div class="code-block">
+        Get-FileHash -Algorithm SHA256 "C:\Path\To\Downloads\FastMailSearch-v1.0.6-Store-Setup.exe"
+      </div>
+      <p>The resulting hash should exactly match: <code>7DD3E976A3C6F741B6AAA9876D4A236A85F93B85045AC7120839C91705BB25FA</code></p>
+    </div>
+
+    <div class="card">
+      <h2>3. Prepare Outlook</h2>
+      <p><strong>Crucial Step:</strong> FastMail Search cannot install safely if Classic Outlook is actively running.</p>
+      <ul>
+        <li>Save any draft emails.</li>
+        <li>Close Classic Microsoft Outlook completely.</li>
+      </ul>
+      <p>If you forget, the installer will gently remind you to save your work and close the application before proceeding.</p>
+    </div>
+
+    <div class="card">
+      <h2>4. Run the Installer</h2>
+      <p>Double-click the downloaded <code>FastMailSearch-v1.0.6-Store-Setup.exe</code> file.</p>
+      <div class="alert">
+        <strong>Note:</strong> You may see a "Windows protected your PC" warning. This is expected because the application is awaiting a final Authenticode code-signing certificate. Please read our <a href="smartscreen.html">SmartScreen Warning Guide</a> for instructions on how to safely proceed.
+      </div>
+      <p>The installer will extract the necessary files to your per-user application data folder and automatically register the COM add-in in the Windows Registry. No Administrator privileges (UAC) are required.</p>
+    </div>
+
+    <div class="card">
+      <h2>5. Launch Outlook & Verify</h2>
+      <p>Open Classic Microsoft Outlook. Navigate to your Home ribbon.</p>
+      <p>You should see a new group containing the <strong>FastMail Search</strong> button. Clicking it will launch the search interface.</p>
+      
+      <h3>Troubleshooting a Missing Ribbon</h3>
+      <p>If the button is missing:</p>
+      <ol>
+        <li>Go to <strong>File</strong> > <strong>Options</strong> > <strong>Add-ins</strong>.</li>
+        <li>Look for "FastMail Search Classic Outlook Add-In" in the <em>Active Application Add-ins</em> list.</li>
+        <li>If it is in the <em>Inactive</em> or <em>Disabled</em> list, select "COM Add-ins" from the Manage dropdown at the bottom and click <strong>Go...</strong></li>
+        <li>Check the box next to FastMail Search and click <strong>OK</strong>.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Upgrades & Uninstallation</h2>
+      <h3>Upgrading</h3>
+      <p>To upgrade from a previous version, simply run the new installer. The setup process will automatically detect your existing installation and preserve your local search index (<code>FastMailSearch.db</code>).</p>
+      
+      <h3>Uninstalling</h3>
+      <p>To remove the application, run the <code>Uninstall-FastMailSearch.ps1</code> script provided in your installation directory, or use Windows Settings > Apps. Uninstallation removes the program files and Registry keys, but <strong>safely preserves your indexed email database and licensing data</strong> in <code>%USERPROFILE%\Documents\FastMailSearch</code> in case you decide to reinstall.</p>
+    </div>
+
+  </main>
+
+  <footer>
+    <p>&copy; 2026 FastMail Search. All rights reserved. | <a href="https://github.com/dipanki111/FastMailSearch" target="_blank" rel="noopener">GitHub</a> | <a href="privacy-policy.html">Privacy Policy</a></p>
+  </footer>
+</body>
+</html>

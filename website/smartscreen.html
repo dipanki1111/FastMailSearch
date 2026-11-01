@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Windows SmartScreen Guide | FastMail Search</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+</head>
+<body>
+  <header>
+    <a href="index.html" class="logo">
+      <img src="assets/favicon.ico" alt="FastMail Search Logo">
+      FastMail Search
+    </a>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="install.html">Install Guide</a></li>
+        <li><a href="smartscreen.html" style="color: var(--primary-color);">SmartScreen</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Windows SmartScreen Warning Guide</h1>
+    <p class="hero-subtitle">Understanding why Windows may block the installer and how to proceed safely.</p>
+
+    <div class="card">
+      <h2>Why does Windows show "Windows protected your PC"?</h2>
+      <p>When you attempt to run the <code>FastMailSearch-v1.0.6-Store-Setup.exe</code> installer, Windows Defender SmartScreen may display a blue warning screen.</p>
+      <p>This happens because our current v1.0.6 installer is an <strong>unsigned executable</strong>. Software distributed on Windows typically requires an expensive "Authenticode Code Signing Certificate" to prove the developer's identity to Microsoft. Because we are currently finalizing this certification process, the installer lacks this digital signature.</p>
+      <p><strong>Note:</strong> Windows flags <em>all</em> unrecognized and unsigned executables downloaded from the internet by default, regardless of whether they are safe.</p>
+    </div>
+
+    <div class="alert" style="border-left: 4px solid #ffc107;">
+      <strong>⚠️ Safety First:</strong> Do not imply that an unsigned installer is automatically certified as safe. We strongly advise that you proceed <em>only</em> if you have downloaded the installer from our official website and independently verified the file integrity.
+    </div>
+
+    <div class="card">
+      <h2>How to verify the Installer</h2>
+      <p>Before proceeding past the warning, confirm the file is exactly what we published:</p>
+      <ol>
+        <li>Right-click the downloaded <code>FastMailSearch-v1.0.6-Store-Setup.exe</code> file and select <strong>Properties</strong>.</li>
+        <li>Check that the file size is approximately <strong>4.09 MB (4,290,560 bytes)</strong>.</li>
+        <li>Go to the <strong>Digital Signatures</strong> tab (if present). You will notice it is currently blank or missing, which confirms it is unsigned.</li>
+        <li>Generate the SHA-256 Checksum using PowerShell (see the <a href="install.html">Installation Guide</a> for the command) and verify it exactly matches the official signature published on our <a href="index.html#download">Download Page</a>.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>How to proceed (Run anyway)</h2>
+      <p>If you have verified the checksum and accept the risk of running an unsigned executable, you can bypass the warning to install the add-in:</p>
+      <ol>
+        <li>When the blue "Windows protected your PC" dialog appears, click the <strong>More info</strong> link text.</li>
+        <li>The dialog will expand to show the app name (<code>FastMailSearch-v1.0.6-Store-Setup.exe</code>) and Publisher (Unknown publisher).</li>
+        <li>Click the <strong>Run anyway</strong> button that appears at the bottom.</li>
+      </ol>
+      <p><em>Note: Do NOT disable Microsoft Defender or SmartScreen globally in your Windows settings. These features are critical for your everyday security.</em></p>
+    </div>
+
+    <div class="card">
+      <h2>When will this be fixed?</h2>
+      <p>We are in the process of acquiring a commercial Authenticode Code Signing Certificate. Once acquired, future updates will be digitally signed, and the Microsoft Store / Windows SmartScreen warnings will no longer appear.</p>
+    </div>
+
+  </main>
+
+  <footer>
+    <p>&copy; 2026 FastMail Search. All rights reserved. | <a href="https://github.com/dipanki111/FastMailSearch" target="_blank" rel="noopener">GitHub</a> | <a href="privacy-policy.html">Privacy Policy</a></p>
+  </footer>
+</body>
+</html>

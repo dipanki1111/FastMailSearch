@@ -19,6 +19,8 @@ namespace FastMailSearch.Infrastructure.Database
     {
         private readonly DatabaseConnectionFactory _factory;
         private readonly DatabaseInitializer _initializer;
+        private readonly object _folderLock = new object();
+        private List<string>? _cachedFolderNames;
 
         public SqliteEmailRepository(DatabaseConnectionFactory factory)
         {
@@ -32,6 +34,7 @@ namespace FastMailSearch.Infrastructure.Database
         public void InitializeDatabase()
         {
             _initializer.Initialize();
+            lock (_folderLock) { _cachedFolderNames = null; }
         }
 
         public Task SaveEmailBatchAsync(IEnumerable<EmailDocument> emails, CancellationToken cancellationToken = default)
@@ -110,6 +113,7 @@ namespace FastMailSearch.Infrastructure.Database
                         }
 
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                     }
                     catch (Exception ex)
                     {
@@ -291,6 +295,7 @@ namespace FastMailSearch.Infrastructure.Database
                         }
 
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                     }
                     catch (Exception ex)
                     {
@@ -543,6 +548,7 @@ namespace FastMailSearch.Infrastructure.Database
                         else if (state == "Completed") UpsertGlobalStateKey(conn, tx, "IndexCompletedAt", nowStr, nowStr);
 
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                     }
                     catch (Exception ex)
                     {
@@ -673,6 +679,7 @@ namespace FastMailSearch.Infrastructure.Database
                             cmd.ExecuteNonQuery();
                         }
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                     }
                     catch (Exception ex)
                     {
@@ -775,6 +782,7 @@ namespace FastMailSearch.Infrastructure.Database
                         else if (state == "Completed") UpsertGlobalStateKey(conn, tx, "IndexCompletedAt", nowStr, nowStr);
 
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                     }
                     catch (Exception ex)
                     {
@@ -821,6 +829,25 @@ namespace FastMailSearch.Infrastructure.Database
                         fromClause = "FROM Emails e";
                     }
 
+                    // Phase 7X: Safe emoji fallback for standalone or mixed emoji queries
+                    var allEmojis = new List<string>();
+                    allEmojis.AddRange(ExtractEmojis(query.FreeText));
+                    foreach (var ep in query.ExactPhrases)
+                    {
+                        allEmojis.AddRange(ExtractEmojis(ep));
+                    }
+                    if (!string.IsNullOrWhiteSpace(query.SubjectFilter))
+                    {
+                        allEmojis.AddRange(ExtractEmojis(query.SubjectFilter));
+                    }
+                    var distinctEmojis = allEmojis.Distinct().ToList();
+                    for (int ei = 0; ei < distinctEmojis.Count; ei++)
+                    {
+                        string pName = $"@EmojiFilter{ei}";
+                        whereClauses.Add($"(e.Subject LIKE {pName} OR e.BodyText LIKE {pName})");
+                        sqlParams.Add(new SqliteParameter(pName, $"%{distinctEmojis[ei]}%"));
+                    }
+
                     // Field specific filters
                     if (!string.IsNullOrWhiteSpace(query.SenderFilter))
                     {
@@ -849,8 +876,43 @@ namespace FastMailSearch.Infrastructure.Database
 
                     if (!string.IsNullOrWhiteSpace(query.FolderFilter))
                     {
-                        whereClauses.Add("e.FolderName LIKE @FolderFilter");
-                        sqlParams.Add(new SqliteParameter("@FolderFilter", $"%{query.FolderFilter}%"));
+                        string rawFilter = query.FolderFilter.Trim();
+                        if (rawFilter.Contains("%") || rawFilter.Contains("*"))
+                        {
+                            whereClauses.Add("e.FolderName LIKE @FolderFilter");
+                            sqlParams.Add(new SqliteParameter("@FolderFilter", rawFilter.Replace("*", "%")));
+                        }
+                        else
+                        {
+                            var known = GetKnownFolderNames(conn);
+                            var exactMatches = known.Where(k => string.Equals(k, rawFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+                            if (exactMatches.Count == 0)
+                            {
+                                exactMatches = known.Where(k => k.IndexOf(rawFilter, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                            }
+
+                            if (exactMatches.Count == 1)
+                            {
+                                whereClauses.Add("e.FolderName = @FolderFilter");
+                                sqlParams.Add(new SqliteParameter("@FolderFilter", exactMatches[0]));
+                            }
+                            else if (exactMatches.Count > 1)
+                            {
+                                var folderParams = new List<string>();
+                                for (int fi = 0; fi < exactMatches.Count; fi++)
+                                {
+                                    string pName = $"@FolderFilter{fi}";
+                                    folderParams.Add(pName);
+                                    sqlParams.Add(new SqliteParameter(pName, exactMatches[fi]));
+                                }
+                                whereClauses.Add($"e.FolderName IN ({string.Join(", ", folderParams)})");
+                            }
+                            else
+                            {
+                                whereClauses.Add("e.FolderName LIKE @FolderFilter");
+                                sqlParams.Add(new SqliteParameter("@FolderFilter", $"%{rawFilter}%"));
+                            }
+                        }
                     }
 
                     if (!string.IsNullOrWhiteSpace(query.StoreFilter))
@@ -1036,6 +1098,107 @@ namespace FastMailSearch.Infrastructure.Database
             return new SqliteParameter(p.ParameterName, p.Value);
         }
 
+        private static bool IsPureNumeric(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return false;
+            for (int i = 0; i < token.Length; i++)
+            {
+                if (!char.IsDigit(token[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        private static bool IsEmoji(int codePoint)
+        {
+            return (codePoint >= 0x1F300 && codePoint <= 0x1FAFF)
+                || (codePoint >= 0x2600 && codePoint <= 0x27BF)
+                || (codePoint >= 0x1F000 && codePoint <= 0x1F02F)
+                || (codePoint >= 0x1F0A0 && codePoint <= 0x1F0FF);
+        }
+
+        private static List<string> ExtractEmojis(string text)
+        {
+            var list = new List<string>();
+            if (string.IsNullOrEmpty(text)) return list;
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (char.IsSurrogatePair(text, i))
+                {
+                    int codePoint = char.ConvertToUtf32(text, i);
+                    if (IsEmoji(codePoint))
+                    {
+                        list.Add(text.Substring(i, 2));
+                    }
+                    i++;
+                }
+                else
+                {
+                    int codePoint = text[i];
+                    if (IsEmoji(codePoint))
+                    {
+                        list.Add(text.Substring(i, 1));
+                    }
+                }
+            }
+            return list;
+        }
+
+        private static string RemoveEmojis(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+            var sb = new StringBuilder();
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (char.IsSurrogatePair(text, i))
+                {
+                    int codePoint = char.ConvertToUtf32(text, i);
+                    if (!IsEmoji(codePoint))
+                    {
+                        sb.Append(text[i]);
+                        sb.Append(text[i + 1]);
+                    }
+                    i++;
+                }
+                else
+                {
+                    int codePoint = text[i];
+                    if (!IsEmoji(codePoint))
+                    {
+                        sb.Append(text[i]);
+                    }
+                }
+            }
+            return sb.ToString();
+        }
+
+        private List<string> GetKnownFolderNames(SqliteConnection conn)
+        {
+            lock (_folderLock)
+            {
+                if (_cachedFolderNames != null && _cachedFolderNames.Count > 0)
+                {
+                    return _cachedFolderNames;
+                }
+
+                var folders = new List<string>();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT DISTINCT FolderName FROM Emails WHERE FolderName IS NOT NULL AND FolderName != '';";
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            folders.Add(reader.GetString(0));
+                        }
+                    }
+                }
+                _cachedFolderNames = folders;
+                return folders;
+            }
+        }
+
         private string? BuildFtsCondition(SearchQuery query, List<SqliteParameter> sqlParams)
         {
             var terms = new List<string>();
@@ -1045,6 +1208,7 @@ namespace FastMailSearch.Infrastructure.Database
                 foreach (var phrase in query.ExactPhrases)
                 {
                     string cleanPhrase = phrase.Replace("\"", "").Replace("'", "");
+                    cleanPhrase = RemoveEmojis(cleanPhrase).Trim();
                     if (!string.IsNullOrWhiteSpace(cleanPhrase))
                     {
                         terms.Add($"\"{cleanPhrase}\"");
@@ -1054,14 +1218,54 @@ namespace FastMailSearch.Infrastructure.Database
 
             if (!string.IsNullOrWhiteSpace(query.FreeText))
             {
-                string[] parts = query.FreeText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                string textNoEmoji = RemoveEmojis(query.FreeText);
+                string[] parts = textNoEmoji.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var p in parts)
                 {
-                    string clean = p.Replace("\"", "").Replace("'", "").Replace("*", "");
+                    string clean = p.Replace("\"", "").Replace("'", "").Replace("*", "").Trim();
                     if (!string.IsNullOrWhiteSpace(clean) && !clean.Equals("OR", StringComparison.OrdinalIgnoreCase) && !clean.Equals("AND", StringComparison.OrdinalIgnoreCase))
                     {
-                        terms.Add($"\"{clean}\"*");
+                        if (IsPureNumeric(clean))
+                        {
+                            terms.Add($"\"{clean}\"");
+                        }
+                        else
+                        {
+                            terms.Add($"\"{clean}\"*");
+                        }
                     }
+                }
+            }
+
+            // Phase 7X: Integrate subject filter into FTS column condition
+            if (!string.IsNullOrWhiteSpace(query.SubjectFilter))
+            {
+                string subjNoEmoji = RemoveEmojis(query.SubjectFilter);
+                string[] parts = subjNoEmoji.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var subjTerms = new List<string>();
+                foreach (var p in parts)
+                {
+                    string clean = p.Replace("\"", "").Replace("'", "").Replace("*", "").Trim();
+                    if (!string.IsNullOrWhiteSpace(clean) && !clean.Equals("OR", StringComparison.OrdinalIgnoreCase) && !clean.Equals("AND", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (IsPureNumeric(clean))
+                        {
+                            subjTerms.Add($"\"{clean}\"");
+                        }
+                        else
+                        {
+                            subjTerms.Add($"\"{clean}\"*");
+                        }
+                    }
+                }
+
+                if (subjTerms.Count == 1)
+                {
+                    terms.Add($"Subject: {subjTerms[0]}");
+                }
+                else if (subjTerms.Count > 1)
+                {
+                    terms.Add($"Subject: ({string.Join(" ", subjTerms)})");
                 }
             }
 
@@ -1220,6 +1424,7 @@ namespace FastMailSearch.Infrastructure.Database
                             }
                         }
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                     }
                     catch (Exception ex)
                     {
@@ -1285,6 +1490,7 @@ namespace FastMailSearch.Infrastructure.Database
                         }
 
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                     }
                     catch (Exception ex)
                     {
@@ -1376,6 +1582,7 @@ namespace FastMailSearch.Infrastructure.Database
                             }
                         }
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                     }
                     catch (Exception ex)
                     {
@@ -1744,6 +1951,7 @@ namespace FastMailSearch.Infrastructure.Database
                         }
 
                         tx.Commit();
+                        lock (_folderLock) { _cachedFolderNames = null; }
                         Logger.Info("[INTEGRITY] Repair completed successfully.");
                     }
                     catch (Exception ex)

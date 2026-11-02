@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,8 +60,14 @@ namespace FastMailSearch.UI.ViewModels
         private bool _isTrialWarningVisible;
         public bool IsTrialWarningVisible { get => _isTrialWarningVisible; set => SetProperty(ref _isTrialWarningVisible, value); }
 
+        private bool _isRenewalWarningVisible;
+        public bool IsRenewalWarningVisible { get => _isRenewalWarningVisible; set => SetProperty(ref _isRenewalWarningVisible, value); }
+
         private string _trialDaysRemainingText = string.Empty;
         public string TrialDaysRemainingText { get => _trialDaysRemainingText; set => SetProperty(ref _trialDaysRemainingText, value); }
+
+        private string _renewalWarningText = string.Empty;
+        public string RenewalWarningText { get => _renewalWarningText; set => SetProperty(ref _renewalWarningText, value); }
 
         private string _licenseKeyInput = string.Empty;
         public string LicenseKeyInput { get => _licenseKeyInput; set => SetProperty(ref _licenseKeyInput, value); }
@@ -74,7 +81,12 @@ namespace FastMailSearch.UI.ViewModels
         private string _copyHardwareIdStatusMessage = string.Empty;
         public string CopyHardwareIdStatusMessage { get => _copyHardwareIdStatusMessage; set => SetProperty(ref _copyHardwareIdStatusMessage, value); }
 
+        private string _copySupportEmailStatusMessage = string.Empty;
+        public string CopySupportEmailStatusMessage { get => _copySupportEmailStatusMessage; set => SetProperty(ref _copySupportEmailStatusMessage, value); }
+
         public ICommand CopyHardwareIdCommand { get; }
+        public ICommand CopySupportEmailCommand { get; }
+        public ICommand OpenProjectRepoCommand { get; }
         public ICommand ActivateCommand { get; }
 
         public ObservableCollection<SearchResultItem> SearchResults { get; } = new ObservableCollection<SearchResultItem>();
@@ -162,6 +174,8 @@ namespace FastMailSearch.UI.ViewModels
             ActivateCommand = new RelayCommand(async _ => await ActivateLicenseAsync());
             HardwareId = _licensingService?.GetHardwareId() ?? "Unavailable";
             CopyHardwareIdCommand = new RelayCommand(_ => CopyHardwareIdToClipboard());
+            CopySupportEmailCommand = new RelayCommand(_ => CopySupportEmailToClipboard());
+            OpenProjectRepoCommand = new RelayCommand(_ => OpenProjectRepository());
 
             FirstPageCommand = new RelayCommand(async _ => await GoToPageAsync(1), _ => HasPreviousPage);
             PreviousPageCommand = new RelayCommand(async _ => await GoToPageAsync(CurrentPage - 1), _ => HasPreviousPage);
@@ -217,18 +231,37 @@ namespace FastMailSearch.UI.ViewModels
             {
                 IsActivationOverlayVisible = true;
                 IsTrialWarningVisible = false;
+                IsRenewalWarningVisible = false;
             }
             else if (status == LicenseStatus.Trial)
             {
                 IsActivationOverlayVisible = false;
                 IsTrialWarningVisible = true;
+                IsRenewalWarningVisible = false;
                 int days = _licensingService.GetTrialDaysRemaining();
                 TrialDaysRemainingText = $"Trial Mode: {days} days remaining";
             }
-            else
+            else if (status == LicenseStatus.Valid)
             {
                 IsActivationOverlayVisible = false;
                 IsTrialWarningVisible = false;
+
+                int daysUntilExpiry = _licensingService.GetDaysUntilExpiry();
+                if (daysUntilExpiry <= 14 && daysUntilExpiry > 0)
+                {
+                    IsRenewalWarningVisible = true;
+                    RenewalWarningText = $"Subscription Renewal: Your annual license expires in {daysUntilExpiry} days. Contact developer.diptesh@gmail.com to renew.";
+                }
+                else
+                {
+                    IsRenewalWarningVisible = false;
+                }
+            }
+            else
+            {
+                IsActivationOverlayVisible = true;
+                IsTrialWarningVisible = false;
+                IsRenewalWarningVisible = false;
             }
         }
 
@@ -602,7 +635,7 @@ namespace FastMailSearch.UI.ViewModels
 
         private void CopyHardwareIdToClipboard()
         {
-            if (string.IsNullOrWhiteSpace(HardwareId) || HardwareId == "Unavailable" || HardwareId == "UNKNOWN-HWID")
+            if (string.IsNullOrWhiteSpace(HardwareId) || HardwareId == "Unavailable" || HardwareId == "UNKNOWN-HWID" || HardwareId == "HWID_UNAVAILABLE")
             {
                 CopyHardwareIdStatusMessage = "Hardware ID is unavailable to copy.";
                 return;
@@ -617,6 +650,38 @@ namespace FastMailSearch.UI.ViewModels
             {
                 CopyHardwareIdStatusMessage = "Could not access clipboard. Please copy ID manually.";
                 FastMailSearch.Infrastructure.Logging.Logger.Error("Clipboard copy failed for Hardware ID", ex);
+            }
+        }
+
+        private void CopySupportEmailToClipboard()
+        {
+            try
+            {
+                Clipboard.SetText("developer.diptesh@gmail.com");
+                CopySupportEmailStatusMessage = "Email copied: developer.diptesh@gmail.com";
+            }
+            catch (Exception ex)
+            {
+                CopySupportEmailStatusMessage = "Failed to copy email.";
+                FastMailSearch.Infrastructure.Logging.Logger.Warn($"Clipboard copy failed: {ex.Message}");
+            }
+        }
+
+        private void OpenProjectRepository()
+        {
+            try
+            {
+                const string repoUrl = "https://github.com/dipanki111/FastMailSearch";
+                var psi = new ProcessStartInfo
+                {
+                    FileName = repoUrl,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                FastMailSearch.Infrastructure.Logging.Logger.Warn($"Failed to open project URL: {ex.Message}");
             }
         }
 

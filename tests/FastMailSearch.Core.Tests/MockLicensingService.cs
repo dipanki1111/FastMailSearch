@@ -27,7 +27,12 @@ namespace FastMailSearch.Core.Tests
             return Status;
         }
 
+        public int DaysUntilExpiry { get; set; } = 365;
+        public DateTime? LicenseExpiryDate { get; set; } = DateTime.UtcNow.AddYears(1);
+
         public int GetTrialDaysRemaining() => TrialDaysRemaining;
+        public int GetDaysUntilExpiry() => DaysUntilExpiry;
+        public DateTime? GetLicenseExpiryDate() => LicenseExpiryDate;
 
         public Task<bool> ActivateAsync(string licenseKey) => Task.FromResult(ActivateResult);
 

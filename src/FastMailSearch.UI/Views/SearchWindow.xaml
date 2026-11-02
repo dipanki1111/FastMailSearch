@@ -827,6 +827,15 @@
 
         <!-- Banners Panel -->
         <StackPanel Grid.Row="2">
+            <!-- Subscription Renewal Banner -->
+            <Border Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                    Visibility="{Binding IsRenewalWarningVisible, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="⚠️ " Foreground="#F59E0B" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding RenewalWarningText}" Foreground="#FCD34D"/>
+                </StackPanel>
+            </Border>
+
             <!-- Trial Warning Banner -->
             <Border Background="#1E3A8A" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8"
                     Visibility="{Binding IsTrialWarningVisible, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
@@ -1014,10 +1023,21 @@
 
         <!-- Activation Overlay -->
         <Grid Grid.RowSpan="6" Background="#DD000000" Visibility="{Binding IsActivationOverlayVisible, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
-            <Border Background="#202124" BorderBrush="#4A4A4A" BorderThickness="1" CornerRadius="8" Width="480" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24">
+            <Border Background="#202124" BorderBrush="#4A4A4A" BorderThickness="1" CornerRadius="8" Width="520" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24">
                 <StackPanel>
-                    <TextBlock Text="Trial Expired" FontSize="20" FontWeight="Bold" Foreground="#EF4444" Margin="0,0,0,12" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Your 30-day trial of FastMail Search has expired. Please enter a valid license key to continue using the application." TextWrapping="Wrap" Foreground="#F1F1F1" Margin="0,0,0,16" TextAlignment="Center" LineHeight="18"/>
+                    <TextBlock Text="FastMail Search — License Required" FontSize="19" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,4" HorizontalAlignment="Center"/>
+                    <TextBlock Text="₹499 / Year Annual Subscription" FontSize="14" FontWeight="SemiBold" Foreground="#10B981" Margin="0,0,0,2" HorizontalAlignment="Center"/>
+                    <TextBlock Text="All future updates, fixes, and major version upgrades (v1.x, v2.x, v3.x) are FREE." FontSize="11" Foreground="#94A3B8" Margin="0,0,0,10" HorizontalAlignment="Center"/>
+                    
+                    <Border Background="#18181B" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="To continue using FastMail Search, activate your annual license:" FontWeight="SemiBold" Foreground="#F1F1F1" FontSize="12" Margin="0,0,0,4"/>
+                            <TextBlock Text="1. Copy your unique Hardware ID below." Foreground="#A1A1AA" FontSize="11" Margin="0,1"/>
+                            <TextBlock Text="2. Contact developer.diptesh@gmail.com or visit our GitHub project to purchase/renew." Foreground="#A1A1AA" FontSize="11" Margin="0,1"/>
+                            <TextBlock Text="3. Paste the license key you receive and click Activate Now." Foreground="#A1A1AA" FontSize="11" Margin="0,1"/>
+                        </StackPanel>
+                    </Border>
+
                     
                     <!-- Hardware ID Display & Copy -->
                     <TextBlock Text="Your Hardware ID:" FontSize="12" Foreground="#A1A1AA" Margin="0,0,0,4"/>
@@ -1035,7 +1055,14 @@
                                 Padding="12,6" Margin="8,0,0,0" VerticalAlignment="Center"
                                 ToolTip="Copy Hardware ID to clipboard"/>
                     </Grid>
-                    <TextBlock Text="{Binding CopyHardwareIdStatusMessage}" Foreground="#38BDF8" FontSize="11" Margin="0,2,0,12"/>
+                    <TextBlock Text="{Binding CopyHardwareIdStatusMessage}" Foreground="#38BDF8" FontSize="11" Margin="0,2,0,8"/>
+
+                    <!-- Support & Project Actions -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                        <Button Command="{Binding CopySupportEmailCommand}" Content="📋 Copy Support Email" Style="{StaticResource ClearButtonStyle}" Padding="10,5" Margin="0,0,8,0" ToolTip="Copy developer.diptesh@gmail.com to clipboard"/>
+                        <Button Command="{Binding OpenProjectRepoCommand}" Content="🌐 GitHub Project / Support" Style="{StaticResource ClearButtonStyle}" Padding="10,5" ToolTip="Open official project repository"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding CopySupportEmailStatusMessage}" Foreground="#10B981" FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,10"/>
 
                     <!-- License Key Input -->
                     <TextBlock Text="License Key:" FontSize="12" Foreground="#A1A1AA" Margin="0,0,0,4"/>

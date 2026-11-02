@@ -38,6 +38,8 @@ namespace FastMailSearch.SyntheticPstIntegrationTest
         }
 
         public int GetTrialDaysRemaining() => TrialDaysRemaining;
+        public int GetDaysUntilExpiry() => 365;
+        public DateTime? GetLicenseExpiryDate() => DateTime.UtcNow.AddYears(1);
         public Task<bool> ActivateAsync(string licenseKey) => Task.FromResult(ActivateResult);
         public string GetHardwareId() => HardwareId;
     }

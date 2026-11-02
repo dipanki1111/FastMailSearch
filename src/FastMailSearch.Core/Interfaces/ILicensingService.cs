@@ -15,6 +15,8 @@ namespace FastMailSearch.Core.Interfaces
     {
         LicenseStatus GetStatus();
         int GetTrialDaysRemaining();
+        int GetDaysUntilExpiry();
+        DateTime? GetLicenseExpiryDate();
         Task<bool> ActivateAsync(string licenseKey);
         string GetHardwareId();
     }

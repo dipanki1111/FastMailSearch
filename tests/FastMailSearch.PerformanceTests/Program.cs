@@ -215,6 +215,8 @@ namespace FastMailSearch.PerformanceTests
         {
             public LicenseStatus GetStatus() => LicenseStatus.Valid;
             public int GetTrialDaysRemaining() => 30;
+            public int GetDaysUntilExpiry() => 365;
+            public DateTime? GetLicenseExpiryDate() => DateTime.UtcNow.AddYears(1);
             public Task<bool> ActivateAsync(string licenseKey) => Task.FromResult(true);
             public string GetHardwareId() => "MOCK-PERF-HWID";
         }

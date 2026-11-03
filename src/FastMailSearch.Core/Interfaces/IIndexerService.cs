@@ -61,8 +61,8 @@ namespace FastMailSearch.Core.Interfaces
         string CurrentOperation { get; }
         string LastError { get; }
 
-        Task StartInitialIndexingAsync(CancellationToken cancellationToken = default);
-        Task<BackfillSummary> StartActiveStoreBackfillAsync(CancellationToken cancellationToken = default);
+        Task StartInitialIndexingAsync(CancellationToken cancellationToken = default, int? maxItems = null);
+        Task<BackfillSummary> StartActiveStoreBackfillAsync(CancellationToken cancellationToken = default, int? maxItems = null);
         Task<StoreCoverageInfo> CheckStoreCoverageAsync(CancellationToken cancellationToken = default);
         Task PauseIndexingAsync();
         Task ResumeIndexingAsync();

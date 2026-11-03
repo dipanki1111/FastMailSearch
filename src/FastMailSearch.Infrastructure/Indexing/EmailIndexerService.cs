@@ -320,9 +320,9 @@ namespace FastMailSearch.Infrastructure.Indexing
             }
         }
 
-        public Task StartInitialIndexingAsync(CancellationToken cancellationToken = default)
+        public Task StartInitialIndexingAsync(CancellationToken cancellationToken = default, int? maxItems = null)
         {
-            return StartScanInternalAsync(isRebuild: false, cancellationToken);
+            return StartScanInternalAsync(isRebuild: false, cancellationToken, maxItems);
         }
 
         public async Task<StoreCoverageInfo> CheckStoreCoverageAsync(CancellationToken cancellationToken = default)
@@ -419,7 +419,7 @@ namespace FastMailSearch.Infrastructure.Indexing
             return info;
         }
 
-        public async Task<BackfillSummary> StartActiveStoreBackfillAsync(CancellationToken cancellationToken = default)
+        public async Task<BackfillSummary> StartActiveStoreBackfillAsync(CancellationToken cancellationToken = default, int? maxItems = null)
         {
             var summary = new BackfillSummary();
 
@@ -427,6 +427,12 @@ namespace FastMailSearch.Infrastructure.Indexing
             {
                 Logger.Info("[BACKFILL] Licensing is ineligible. Backfill cannot start.");
                 summary.ErrorMessage = "Indexing is paused. A valid license or active trial is required to backfill emails.";
+                return summary;
+            }
+
+            if (maxItems.HasValue && maxItems.Value <= 0)
+            {
+                Logger.Info($"[BACKFILL] Bounded backfill requested with maxItems={maxItems.Value}. Returning 0 items indexed.");
                 return summary;
             }
 
@@ -534,6 +540,12 @@ namespace FastMailSearch.Infrastructure.Indexing
                             break;
                         }
 
+                        if (maxItems.HasValue && totalIndexed >= maxItems.Value)
+                        {
+                            Logger.Info($"[BACKFILL] Reached hard limit of {maxItems.Value} emails across folders. Halting backfill.");
+                            break;
+                        }
+
                         _currentFolder = folder.Name;
                         int folderItemCount = folder.ItemCount;
                         if (folderItemCount == 0)
@@ -617,12 +629,32 @@ namespace FastMailSearch.Infrastructure.Indexing
                                 break;
                             }
 
+                            if (maxItems.HasValue && totalIndexed >= maxItems.Value)
+                            {
+                                Logger.Info($"[BACKFILL] Reached hard limit of {maxItems.Value} emails in folder '{folder.Name}'. Halting folder backfill.");
+                                break;
+                            }
+
                             while (_isPaused)
                             {
                                 _currentOperation = "Backfill paused by user";
                                 await _repository.SaveLiveProgressAsync("Paused", _currentOperation, _processedItems, _totalItems, folder.Name, folderProcessed, folderItemCount, totalIndexed, totalSkipped, totalFailed, _pendingDbCount);
                                 ReportProgress(_totalItems, _processedItems, _skippedItems, folder.Name, "Backfill paused by user", IndexerStatus.Paused, folderProcessed, folderItemCount, totalIndexed, totalFailed);
                                 await Task.Delay(500, _indexerCts.Token);
+                            }
+
+                            int effectiveBatchSize = batchSize;
+                            if (maxItems.HasValue)
+                            {
+                                int remaining = maxItems.Value - totalIndexed;
+                                if (remaining <= 0)
+                                {
+                                    break;
+                                }
+                                if (remaining < effectiveBatchSize)
+                                {
+                                    effectiveBatchSize = remaining;
+                                }
                             }
 
                             FolderBatchResult batchResult = FolderBatchResult.Empty(currentStart);
@@ -639,7 +671,7 @@ namespace FastMailSearch.Infrastructure.Indexing
                                             storeId,
                                             folder.EntryId,
                                             currentStart,
-                                            batchSize,
+                                            effectiveBatchSize,
                                             () => _indexerCts.Token.IsCancellationRequested || _isPaused || (_testCancelCheck != null && _testCancelCheck())
                                         );
                                     }
@@ -649,13 +681,13 @@ namespace FastMailSearch.Infrastructure.Indexing
                                             storeId,
                                             folder.EntryId,
                                             currentStart,
-                                            batchSize,
+                                            effectiveBatchSize,
                                             () => _indexerCts.Token.IsCancellationRequested || _isPaused || (_testCancelCheck != null && _testCancelCheck())
                                         );
                                         bool isCanc = _indexerCts.Token.IsCancellationRequested || _isPaused;
                                         int lastIdx = isCanc
                                             ? (currentStart + legacyBatch.Count - 1)
-                                            : Math.Min(currentStart + batchSize - 1, folderItemCount);
+                                            : Math.Min(currentStart + effectiveBatchSize - 1, folderItemCount);
 
                                         batchResult = new FolderBatchResult
                                         {
@@ -672,7 +704,7 @@ namespace FastMailSearch.Infrastructure.Indexing
                                 catch (Exception ex)
                                 {
                                     retryCount++;
-                                    Logger.Warn($"[BACKFILL RETRY] Error fetching batch ({currentStart}..{currentStart + batchSize - 1}) in '{folder.Name}', attempt {retryCount}/3: {ex.Message}");
+                                    Logger.Warn($"[BACKFILL RETRY] Error fetching batch ({currentStart}..{currentStart + effectiveBatchSize - 1}) in '{folder.Name}', attempt {retryCount}/3: {ex.Message}");
                                     if (retryCount < 3)
                                     {
                                         await Task.Delay(500 * retryCount, _indexerCts.Token);
@@ -682,7 +714,7 @@ namespace FastMailSearch.Infrastructure.Indexing
 
                             if (!batchSuccess)
                             {
-                                Logger.Error($"[BACKFILL ERROR] Failed fetching batch ({currentStart}..{currentStart + batchSize - 1}) in folder '{folder.Name}'. Checkpoint preserved at offset {folderProcessed}.");
+                                Logger.Error($"[BACKFILL ERROR] Failed fetching batch ({currentStart}..{currentStart + effectiveBatchSize - 1}) in folder '{folder.Name}'. Checkpoint preserved at offset {folderProcessed}.");
                                 (_outlookAdapter as IFolderBatchReader)?.ResetCursorSession();
                                 break;
                             }
@@ -690,41 +722,54 @@ namespace FastMailSearch.Infrastructure.Indexing
                             bool persistenceSuccess = true;
                             if (batchResult.Items.Count > 0)
                             {
-                                int saveRetry = 0;
-                                persistenceSuccess = false;
-                                while (saveRetry < 3 && !persistenceSuccess && !_indexerCts.Token.IsCancellationRequested)
+                                var itemsToPersist = batchResult.Items;
+                                if (maxItems.HasValue)
                                 {
-                                    try
+                                    int remaining = Math.Max(0, maxItems.Value - totalIndexed);
+                                    if (itemsToPersist.Count > remaining)
                                     {
-                                        await _repository.SaveEmailBatchAsync(batchResult.Items, _indexerCts.Token);
-                                        totalIndexed += batchResult.Items.Count;
-                                        _lastIndexedItemTime = DateTime.Now;
-                                        persistenceSuccess = true;
-                                    }
-                                    catch (OperationCanceledException)
-                                    {
-                                        summary.IsCancelled = true;
-                                        (_outlookAdapter as IFolderBatchReader)?.ResetCursorSession();
-                                        break;
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        saveRetry++;
-                                        Logger.Warn($"[BACKFILL RETRY] Error saving email batch in folder '{folder.Name}', attempt {saveRetry}/3: {ex.Message}");
-                                        if (saveRetry < 3)
-                                        {
-                                            await Task.Delay(500 * saveRetry, _indexerCts.Token);
-                                        }
+                                        itemsToPersist = itemsToPersist.Take(remaining).ToList();
                                     }
                                 }
 
-                                if (!persistenceSuccess && !_indexerCts.Token.IsCancellationRequested)
+                                if (itemsToPersist.Count > 0)
                                 {
-                                    Logger.Error($"[BACKFILL ERROR] Exhausted retries saving email batch ({currentStart}..{batchResult.LastProcessedIndex}) in folder '{folder.Name}'. Checkpoint preserved at offset {folderProcessed}.");
-                                    totalFailed += batchResult.Items.Count;
-                                    summary.ErrorMessage = $"Failed saving email batch in folder '{folder.Name}'.";
-                                    (_outlookAdapter as IFolderBatchReader)?.ResetCursorSession();
-                                    break;
+                                    int saveRetry = 0;
+                                    persistenceSuccess = false;
+                                    while (saveRetry < 3 && !persistenceSuccess && !_indexerCts.Token.IsCancellationRequested)
+                                    {
+                                        try
+                                        {
+                                            await _repository.SaveEmailBatchAsync(itemsToPersist, _indexerCts.Token);
+                                            totalIndexed += itemsToPersist.Count;
+                                            _lastIndexedItemTime = DateTime.Now;
+                                            persistenceSuccess = true;
+                                        }
+                                        catch (OperationCanceledException)
+                                        {
+                                            summary.IsCancelled = true;
+                                            (_outlookAdapter as IFolderBatchReader)?.ResetCursorSession();
+                                            break;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            saveRetry++;
+                                            Logger.Warn($"[BACKFILL RETRY] Error saving email batch in folder '{folder.Name}', attempt {saveRetry}/3: {ex.Message}");
+                                            if (saveRetry < 3)
+                                            {
+                                                await Task.Delay(500 * saveRetry, _indexerCts.Token);
+                                            }
+                                        }
+                                    }
+
+                                    if (!persistenceSuccess && !_indexerCts.Token.IsCancellationRequested)
+                                    {
+                                        Logger.Error($"[BACKFILL ERROR] Exhausted retries saving email batch ({currentStart}..{batchResult.LastProcessedIndex}) in folder '{folder.Name}'. Checkpoint preserved at offset {folderProcessed}.");
+                                        totalFailed += itemsToPersist.Count;
+                                        summary.ErrorMessage = $"Failed saving email batch in folder '{folder.Name}'.";
+                                        (_outlookAdapter as IFolderBatchReader)?.ResetCursorSession();
+                                        break;
+                                    }
                                 }
                             }
 
@@ -775,6 +820,12 @@ namespace FastMailSearch.Infrastructure.Indexing
                                 break;
                             }
 
+                            if (maxItems.HasValue && totalIndexed >= maxItems.Value)
+                            {
+                                Logger.Info($"[BACKFILL] Reached hard limit of {maxItems.Value} emails. Halting folder backfill for '{folder.Name}'.");
+                                break;
+                            }
+
                             if (batchResult.LastProcessedIndex >= currentStart)
                             {
                                 currentStart = batchResult.LastProcessedIndex + 1;
@@ -787,6 +838,13 @@ namespace FastMailSearch.Infrastructure.Indexing
                         }
 
                         if (summary.IsCancelled) break;
+
+                        if (maxItems.HasValue && totalIndexed >= maxItems.Value)
+                        {
+                            Logger.Info($"[BACKFILL] Reached hard limit of {maxItems.Value} emails. Halting store backfill.");
+                            break;
+                        }
+
                         completedPreviousFoldersCount += folderItemCount;
                         _processedItems = completedPreviousFoldersCount;
                         Logger.Info($"[BACKFILL] Completed folder: {folder.Name}");
@@ -813,9 +871,13 @@ namespace FastMailSearch.Infrastructure.Indexing
 
                     if (!summary.IsCancelled && !_isPaused)
                     {
+                        string statusMsg = maxItems.HasValue && totalIndexed >= maxItems.Value
+                            ? $"Bounded backfill complete. {totalIndexed:N0} emails indexed (limit: {maxItems.Value:N0})."
+                            : $"Backfill complete. {_processedItems:N0} emails indexed.";
+
                         await _repository.SaveLiveProgressAsync("Completed", "Idle", _processedItems, _totalItems, _currentFolder, _folderProcessedItems, _folderTotalItems, totalIndexed, totalSkipped, totalFailed, _pendingDbCount);
                         await _repository.SaveIndexStateAsync("Completed", totalIndexed, _totalItems, _currentFolder, null);
-                        ReportProgress(_totalItems, _processedItems, _skippedItems, "", $"Backfill complete. {_processedItems:N0} emails indexed.", IndexerStatus.Idle, newlyIndexed: totalIndexed, failed: totalFailed);
+                        ReportProgress(_totalItems, _processedItems, _skippedItems, "", statusMsg, IndexerStatus.Idle, newlyIndexed: totalIndexed, failed: totalFailed);
                         Logger.Info($"[BACKFILL] Active store backfill finished successfully. Indexed: {totalIndexed}, Skipped: {totalSkipped}, Failed: {totalFailed}");
                     }
                     else if (_isPaused)
@@ -883,7 +945,7 @@ namespace FastMailSearch.Infrastructure.Indexing
             await StartScanInternalAsync(isRebuild: true, cancellationToken);
         }
 
-        private Task StartScanInternalAsync(bool isRebuild, CancellationToken cancellationToken)
+        private Task StartScanInternalAsync(bool isRebuild, CancellationToken cancellationToken, int? maxItems = null)
         {
             if (!IsLicensingEligible())
             {
@@ -891,6 +953,14 @@ namespace FastMailSearch.Infrastructure.Indexing
                 CurrentStatus = IndexerStatus.Paused;
                 _currentOperation = "Paused: License required";
                 ReportProgress(0, 0, 0, "", "Indexing is paused: License required", IndexerStatus.Paused);
+                return Task.CompletedTask;
+            }
+
+            if (maxItems.HasValue && maxItems.Value <= 0)
+            {
+                Logger.Info($"[INDEX] Bounded scan requested with maxItems={maxItems.Value}. Returning 0 items indexed.");
+                CurrentStatus = IndexerStatus.Idle;
+                _currentOperation = "Idle";
                 return Task.CompletedTask;
             }
 
@@ -962,6 +1032,11 @@ namespace FastMailSearch.Infrastructure.Indexing
                         foreach (var (storeId, folder) in folderTasks)
                         {
                             if (_indexerCts.Token.IsCancellationRequested) break;
+                            if (maxItems.HasValue && totalIndexed >= maxItems.Value)
+                            {
+                                Logger.Info($"[INDEX] Reached hard limit of {maxItems.Value} emails across folders. Halting index scan.");
+                                break;
+                            }
 
                             if (_outlookAdapter.IsOutboxFolder(storeId, folder.EntryId) || folder.Name.Equals("Outbox", StringComparison.OrdinalIgnoreCase))
                             {
@@ -1007,10 +1082,24 @@ namespace FastMailSearch.Infrastructure.Indexing
 
                                 if (_indexerCts.Token.IsCancellationRequested) break;
 
+                                if (maxItems.HasValue && totalIndexed >= maxItems.Value)
+                                {
+                                    Logger.Info($"[INDEX] Reached hard limit of {maxItems.Value} emails in folder '{folder.Name}'. Halting folder scan.");
+                                    break;
+                                }
+
                                 while (_isPaused)
                                 {
                                     ReportProgress(_totalItems, _processedItems, totalSkipped, folder.Name, "Indexing paused by user", IndexerStatus.Paused, folderProcessed, folderItemCount);
                                     await Task.Delay(500, _indexerCts.Token);
+                                }
+
+                                int effectiveBatchSize = batchSize;
+                                if (maxItems.HasValue)
+                                {
+                                    int remaining = maxItems.Value - totalIndexed;
+                                    if (remaining <= 0) break;
+                                    if (remaining < effectiveBatchSize) effectiveBatchSize = remaining;
                                 }
 
                                 try
@@ -1019,21 +1108,29 @@ namespace FastMailSearch.Infrastructure.Indexing
                                         storeId,
                                         folder.EntryId,
                                         start,
-                                        batchSize,
+                                        effectiveBatchSize,
                                         () => _indexerCts.Token.IsCancellationRequested || _isPaused || (_testCancelCheck != null && _testCancelCheck())
                                     );
 
-                                    if (batch.Count > 0)
+                                    var itemsToPersist = batch;
+                                    if (maxItems.HasValue)
                                     {
-                                        await _repository.SaveEmailBatchAsync(batch, _indexerCts.Token);
-                                        totalIndexed += batch.Count;
+                                        int remaining = Math.Max(0, maxItems.Value - totalIndexed);
+                                        if (itemsToPersist.Count > remaining)
+                                            itemsToPersist = itemsToPersist.Take(remaining).ToList();
+                                    }
+
+                                    if (itemsToPersist.Count > 0)
+                                    {
+                                        await _repository.SaveEmailBatchAsync(itemsToPersist, _indexerCts.Token);
+                                        totalIndexed += itemsToPersist.Count;
                                         _lastIndexedItemTime = DateTime.Now;
                                     }
 
-                                    int batchAttempted = Math.Min(batchSize, folderItemCount - start + 1);
-                                    totalSkipped += Math.Max(0, batchAttempted - batch.Count);
+                                    int batchAttempted = Math.Min(effectiveBatchSize, folderItemCount - start + 1);
+                                    totalSkipped += Math.Max(0, batchAttempted - itemsToPersist.Count);
 
-                                    int currentOffset = Math.Min(start + batchSize - 1, folderItemCount);
+                                    int currentOffset = Math.Min(start + effectiveBatchSize - 1, folderItemCount);
                                     folderProcessed = currentOffset;
                                     _processedItems = completedPreviousFoldersCount + folderProcessed;
                                     _skippedItems = totalSkipped;
@@ -1048,6 +1145,8 @@ namespace FastMailSearch.Infrastructure.Indexing
                                         folderProcessed: folderProcessed,
                                         folderTotal: folderItemCount
                                     );
+
+                                    if (maxItems.HasValue && totalIndexed >= maxItems.Value) break;
                                 }
                                 catch (Exception ex)
                                 {
@@ -1055,6 +1154,12 @@ namespace FastMailSearch.Infrastructure.Indexing
                                     totalSkipped += batchSize;
                                     _skippedItems = totalSkipped;
                                 }
+                            }
+
+                            if (maxItems.HasValue && totalIndexed >= maxItems.Value)
+                            {
+                                Logger.Info($"[INDEX] Reached hard limit of {maxItems.Value} emails. Halting store scan.");
+                                break;
                             }
 
                             completedPreviousFoldersCount += folderItemCount;

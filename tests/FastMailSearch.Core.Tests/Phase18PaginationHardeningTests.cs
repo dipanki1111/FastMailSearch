@@ -383,7 +383,7 @@ namespace FastMailSearch.Core.Tests
 
         public event EventHandler<IndexerProgressEventArgs>? ProgressChanged;
 
-        public Task StartInitialIndexingAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task StartInitialIndexingAsync(CancellationToken cancellationToken = default, int? maxItems = null) => Task.CompletedTask;
         public Task PauseIndexingAsync() => Task.CompletedTask;
         public Task ResumeIndexingAsync() => Task.CompletedTask;
         public Task<BackfillSummary> ResumeIncrementalCatchUpAsync(CancellationToken cancellationToken = default) => Task.FromResult(new BackfillSummary());
@@ -394,7 +394,7 @@ namespace FastMailSearch.Core.Tests
         public Task QueueItemForDeletionAsync(string storeId, string entryId) => Task.CompletedTask;
         public Task<IndexIntegrityResult> ScanIndexIntegrityAsync(CancellationToken cancellationToken = default) => Task.FromResult(new IndexIntegrityResult());
         public Task RepairIndexIntegrityAsync(IndexIntegrityResult scanResult, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<BackfillSummary> StartActiveStoreBackfillAsync(CancellationToken cancellationToken = default) => Task.FromResult(new BackfillSummary());
+        public Task<BackfillSummary> StartActiveStoreBackfillAsync(CancellationToken cancellationToken = default, int? maxItems = null) => Task.FromResult(new BackfillSummary());
         public Task<StoreCoverageInfo> CheckStoreCoverageAsync(CancellationToken cancellationToken = default) => Task.FromResult(new StoreCoverageInfo());
         public IndexerProgressEventArgs GetStatus() => new IndexerProgressEventArgs();
         public void SetSafeMode(string reason) { }

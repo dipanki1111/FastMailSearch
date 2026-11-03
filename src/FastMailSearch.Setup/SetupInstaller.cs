@@ -101,59 +101,27 @@ namespace FastMailSearch.Setup
                     Directory.CreateDirectory(targetDir);
                 }
 
-                // 4. Safe Upgrade Database Backup (guarded against reparse points and query failures)
-                string dataDir = Path.Combine(localAppData, "FastMailSearch");
-                var dataDirStatus = GetReparseStatus(dataDir, out string? dataDirErr);
-                if (dataDirStatus == ReparseCheckResult.IsReparsePoint)
+                // 4. Safe Upgrade Database Backup (canonical Documents\FastMailSearch\FastMailSearch.db + legacy paths)
+                Console.WriteLine("Scanning for existing databases to back up prior to upgrade...");
+                var backupResult = InstallerDatabaseBackup.BackupAllExistingDatabases(
+                    msg => Console.WriteLine(msg));
+
+                if (!backupResult.Success)
                 {
-                    Console.WriteLine($"[SECURITY ERROR] Data directory '{dataDir}' is a junction or reparse point. Aborting setup to prevent arbitrary file redirection.");
+                    Console.WriteLine($"[SECURITY / BACKUP ERROR] Pre-upgrade database backup failed: {backupResult.ErrorMessage}");
+                    if (isSilent)
+                    {
+                        Console.WriteLine("Installation cancelled: Database backup failure. Setup aborted fail-closed.");
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            $"Failed to create a pre-upgrade backup of your database:\n\n{backupResult.ErrorMessage}\n\nInstallation has been safely aborted to protect your data.",
+                            "FastMail Search Setup - Backup Failure",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                    }
                     return 1;
-                }
-                if (dataDirStatus == ReparseCheckResult.QueryFailed)
-                {
-                    Console.WriteLine($"[SECURITY ERROR] Could not verify attributes of data directory '{dataDir}': {dataDirErr}. Aborting setup fail-closed.");
-                    return 1;
-                }
-
-                if (dataDirStatus == ReparseCheckResult.DoesNotExist)
-                {
-                    Directory.CreateDirectory(dataDir);
-                }
-                else if (dataDirStatus == ReparseCheckResult.NotReparsePoint)
-                {
-                    string dbFile = Path.Combine(dataDir, "fastmail_search.db");
-                    var dbFileStatus = GetReparseStatus(dbFile, out string? dbFileErr);
-                    if (dbFileStatus == ReparseCheckResult.IsReparsePoint)
-                    {
-                        Console.WriteLine($"[SECURITY ERROR] Database file '{dbFile}' is a junction or reparse point. Aborting setup.");
-                        return 1;
-                    }
-                    if (dbFileStatus == ReparseCheckResult.QueryFailed)
-                    {
-                        Console.WriteLine($"[SECURITY ERROR] Could not verify attributes of database file '{dbFile}': {dbFileErr}. Aborting setup fail-closed.");
-                        return 1;
-                    }
-
-                    if (dbFileStatus == ReparseCheckResult.NotReparsePoint)
-                    {
-                        string backupName = $"FastMailSearch_Backup_PreUpgrade_{DateTime.Now:yyyyMMdd_HHmmss}.db";
-                        string backupPath = Path.Combine(dataDir, backupName);
-
-                        var backupStatus = GetReparseStatus(backupPath, out string? backupErr);
-                        if (backupStatus == ReparseCheckResult.IsReparsePoint)
-                        {
-                            Console.WriteLine($"[SECURITY ERROR] Backup destination '{backupPath}' is a junction or reparse point. Aborting setup.");
-                            return 1;
-                        }
-                        if (backupStatus == ReparseCheckResult.QueryFailed)
-                        {
-                            Console.WriteLine($"[SECURITY ERROR] Could not verify attributes of backup destination '{backupPath}': {backupErr}. Aborting setup fail-closed.");
-                            return 1;
-                        }
-
-                        Console.WriteLine($"Creating pre-upgrade database backup: {backupName}...");
-                        File.Copy(dbFile, backupPath, overwrite: true);
-                    }
                 }
 
                 // 5. Extract Embedded Payload.zip to Target Directory
@@ -400,44 +368,9 @@ namespace FastMailSearch.Setup
             return true;
         }
 
-        private enum ReparseCheckResult
-        {
-            DoesNotExist,
-            NotReparsePoint,
-            IsReparsePoint,
-            QueryFailed
-        }
-
-        // Note: In managed .NET Framework 4.8 without native P/Invoke handles (e.g. FILE_FLAG_OPEN_REPARSE_POINT),
-        // FileAttributes.ReparsePoint checks inspect the filesystem state immediately prior to extraction
-        // but do not eliminate potential time-of-check to time-of-use (TOCTOU) race conditions if another
-        // process concurrently modifies directory attributes during extraction.
         private static ReparseCheckResult GetReparseStatus(string path, out string? errorDetail)
         {
-            errorDetail = null;
-            try
-            {
-                FileAttributes attrs = File.GetAttributes(path);
-                if ((attrs & FileAttributes.ReparsePoint) != 0)
-                {
-                    return ReparseCheckResult.IsReparsePoint;
-                }
-
-                return ReparseCheckResult.NotReparsePoint;
-            }
-            catch (FileNotFoundException)
-            {
-                return ReparseCheckResult.DoesNotExist;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                return ReparseCheckResult.DoesNotExist;
-            }
-            catch (Exception ex)
-            {
-                errorDetail = ex.Message;
-                return ReparseCheckResult.QueryFailed;
-            }
+            return InstallerDatabaseBackup.GetReparseStatus(path, out errorDetail);
         }
 
         private static bool VerifyNoReparsePointsInPath(string canonicalTargetDir, string canonicalDestination, bool isDirectoryEntry, out string failureReason)

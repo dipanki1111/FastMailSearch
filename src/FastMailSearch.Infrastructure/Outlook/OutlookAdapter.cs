@@ -225,25 +225,43 @@ namespace FastMailSearch.Infrastructure.Outlook
 
         private OutlookInterop.Application? GetApplication()
         {
-            if (_outlookApp != null) return _outlookApp;
-
-            try
-            {
-                _outlookApp = (OutlookInterop.Application)GetActiveComObject("Outlook.Application");
-                return _outlookApp;
-            }
-            catch
+            if (_outlookApp != null)
             {
                 try
                 {
-                    _outlookApp = new OutlookInterop.Application();
+                    // Verify cached COM proxy is still alive and responsive
+                    _ = _outlookApp.Version;
                     return _outlookApp;
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Logger.Error("Could not connect to or start Classic Outlook COM Application", ex);
+                    // Outlook closed or COM connection disconnected
+                    _outlookApp = null;
+                }
+            }
+
+            // PASSIVE ATTACHMENT ONLY:
+            // FastMailSearch must never implicitly launch or instantiate Outlook when Outlook is closed.
+            // 1. Quick process check: If OUTLOOK process is not running, return null immediately.
+            try
+            {
+                var procs = System.Diagnostics.Process.GetProcessesByName("OUTLOOK");
+                if (procs == null || procs.Length == 0)
+                {
                     return null;
                 }
+
+                // 2. Passive COM attachment to the running Outlook instance via Running Object Table (ROT).
+                _outlookApp = (OutlookInterop.Application)GetActiveComObject("Outlook.Application");
+                return _outlookApp;
+            }
+            catch (Exception ex)
+            {
+                // Outlook is closing, busy, starting up, or Running Object Table registration is not yet ready.
+                // Do NOT invoke new OutlookInterop.Application() under any circumstances.
+                Logger.Info($"[OUTLOOK COM] Passive attachment unavailable: {ex.Message}");
+                _outlookApp = null;
+                return null;
             }
         }
 

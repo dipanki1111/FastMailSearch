@@ -96,7 +96,72 @@ namespace FastMailSearch.Infrastructure.Outlook
             return result;
         }
 
+        public bool TryInvoke(Action action, TimeSpan timeout)
+        {
+            if (action == null) throw new ArgumentNullException(nameof(action));
+
+            if (Thread.CurrentThread == _thread)
+            {
+                action();
+                return true;
+            }
+
+            if (_isDisposed || _queue.IsAddingCompleted)
+            {
+                return false;
+            }
+
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            try
+            {
+                _queue.Add(() =>
+                {
+                    try
+                    {
+                        action();
+                        tcs.SetResult(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.SetException(ex);
+                    }
+                });
+                return tcs.Task.Wait((int)timeout.TotalMilliseconds);
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
+
+        public bool TryInvoke<T>(Func<T> func, TimeSpan timeout, out T result)
+        {
+            if (func == null) throw new ArgumentNullException(nameof(func));
+
+            if (Thread.CurrentThread == _thread)
+            {
+                result = func();
+                return true;
+            }
+
+            if (_isDisposed || _queue.IsAddingCompleted)
+            {
+                result = default!;
+                return false;
+            }
+
+            T res = default!;
+            bool ok = TryInvoke(() => { res = func(); }, timeout);
+            result = res;
+            return ok;
+        }
+
         public void Dispose()
+        {
+            Dispose(3000);
+        }
+
+        public void Dispose(int timeoutMs)
         {
             lock (_disposeLock)
             {
@@ -111,16 +176,116 @@ namespace FastMailSearch.Infrastructure.Outlook
 
             if (Thread.CurrentThread != _thread && _thread.IsAlive)
             {
-                _thread.Join(3000);
+                if (timeoutMs > 0)
+                {
+                    _thread.Join(timeoutMs);
+                }
             }
         }
     }
 
     public class OutlookAdapter : IOutlookAdapter, IFolderBatchReader, IDisposable
     {
+        public sealed class FolderEventSubscription
+        {
+            public OutlookInterop.Items Items { get; }
+            public OutlookInterop.ItemsEvents_ItemAddEventHandler? ItemAddHandler { get; }
+            public OutlookInterop.ItemsEvents_ItemChangeEventHandler? ItemChangeHandler { get; }
+            public OutlookInterop.ItemsEvents_ItemRemoveEventHandler? ItemRemoveHandler { get; }
+            public bool IsUnsubscribed { get; private set; }
+
+            public FolderEventSubscription(
+                OutlookInterop.Items items,
+                OutlookInterop.ItemsEvents_ItemAddEventHandler? itemAddHandler,
+                OutlookInterop.ItemsEvents_ItemChangeEventHandler? itemChangeHandler,
+                OutlookInterop.ItemsEvents_ItemRemoveEventHandler? itemRemoveHandler = null)
+            {
+                Items = items;
+                ItemAddHandler = itemAddHandler;
+                ItemChangeHandler = itemChangeHandler;
+                ItemRemoveHandler = itemRemoveHandler;
+            }
+
+            public void UnsubscribeAndRelease()
+            {
+                if (IsUnsubscribed) return;
+                IsUnsubscribed = true;
+
+                try
+                {
+                    if (ItemAddHandler != null)
+                    {
+                        Items.ItemAdd -= ItemAddHandler;
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (ItemChangeHandler != null)
+                    {
+                        Items.ItemChange -= ItemChangeHandler;
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (ItemRemoveHandler != null)
+                    {
+                        Items.ItemRemove -= ItemRemoveHandler;
+                    }
+                }
+                catch { }
+
+                var tmp = Items;
+                ComReleaseHelper.Release(ref tmp!);
+            }
+        }
+
+        public static bool SafeSubscribeItems(
+            OutlookInterop.Items items,
+            OutlookInterop.ItemsEvents_ItemAddEventHandler addHandler,
+            OutlookInterop.ItemsEvents_ItemChangeEventHandler changeHandler,
+            out FolderEventSubscription? subscription)
+        {
+            subscription = null;
+            if (items == null) return false;
+
+            try
+            {
+                items.ItemAdd += addHandler;
+                try
+                {
+                    items.ItemChange += changeHandler;
+                    subscription = new FolderEventSubscription(items, addHandler, changeHandler);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error("[OUTLOOK EVENT ERROR] Failed to subscribe ItemChange; unhooking ItemAdd and releasing items COM object", ex);
+                    try
+                    {
+                        items.ItemAdd -= addHandler;
+                    }
+                    catch { }
+                    var tmp = items;
+                    ComReleaseHelper.Release(ref tmp!);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("[OUTLOOK EVENT ERROR] Failed to subscribe ItemAdd; releasing items COM object", ex);
+                var tmp = items;
+                ComReleaseHelper.Release(ref tmp!);
+                return false;
+            }
+        }
+
         private OutlookInterop.Application? _outlookApp;
         private readonly StaWorkerThread _staThread = new StaWorkerThread();
-        private readonly List<OutlookInterop.Items> _subscribedItemsList = new List<OutlookInterop.Items>();
+        private readonly List<FolderEventSubscription> _subscribedItemsList = new List<FolderEventSubscription>();
         private Action<string, string, string>? _onItemChangedCallback;
         private Action<string, string>? _onItemRemovedCallback;
         private readonly HashSet<string> _outboxFolderEntryIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1222,69 +1387,88 @@ namespace FastMailSearch.Infrastructure.Outlook
 
                 if (folder.DefaultItemType == OutlookInterop.OlItemType.olMailItem)
                 {
-                    var items = folder.Items;
-                    bool isSentItems = IsSentItemsFolderId(folderEntryId) || folderName.Equals("Sent Items", StringComparison.OrdinalIgnoreCase) || folderName.Equals("Sent", StringComparison.OrdinalIgnoreCase);
-
-                    items.ItemAdd += (itemObj) =>
+                    try
                     {
-                        // Requirement 3 & 5: Non-blocking & Outbox guard
-                        if (IsOutboxFolder(storeId, folderEntryId))
-                        {
-                            Logger.Info($"[OUTLOOK EVENT] Type=ItemAdd Folder=Outbox Action=SKIPPED_OUTBOX");
-                            return;
-                        }
+                        var items = folder.Items;
+                        bool isSentItems = IsSentItemsFolderId(folderEntryId) || folderName.Equals("Sent Items", StringComparison.OrdinalIgnoreCase) || folderName.Equals("Sent", StringComparison.OrdinalIgnoreCase);
 
-                        if (itemObj is OutlookInterop.MailItem mailItem)
+                        OutlookInterop.ItemsEvents_ItemAddEventHandler addHandler = (itemObj) =>
                         {
-                            string entryId = string.Empty;
                             try
                             {
-                                entryId = mailItem.EntryID ?? string.Empty;
-                            }
-                            catch { }
+                                // Requirement 3 & 5: Non-blocking & Outbox guard
+                                if (IsOutboxFolder(storeId, folderEntryId))
+                                {
+                                    Logger.Info($"[OUTLOOK EVENT] Type=ItemAdd Folder=Outbox Action=SKIPPED_OUTBOX");
+                                    return;
+                                }
 
-                            if (!string.IsNullOrEmpty(entryId))
+                                if (itemObj is OutlookInterop.MailItem mailItem)
+                                {
+                                    string entryId = string.Empty;
+                                    try
+                                    {
+                                        entryId = mailItem.EntryID ?? string.Empty;
+                                    }
+                                    catch { }
+
+                                    if (!string.IsNullOrEmpty(entryId))
+                                    {
+                                        string folderLabel = isSentItems ? "Sent Items" : folderName;
+                                        Logger.Info($"[OUTLOOK EVENT] Type=ItemAdd Folder={folderLabel} EntryId={entryId} Action=QUEUED_FOR_INDEX");
+                                        _onItemChangedCallback?.Invoke(storeId, entryId, folderEntryId);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
                             {
-                                string folderLabel = isSentItems ? "Sent Items" : folderName;
-                                Logger.Info($"[OUTLOOK EVENT] Type=ItemAdd Folder={folderLabel} EntryId={entryId} Action=QUEUED_FOR_INDEX");
-                                _onItemChangedCallback?.Invoke(storeId, entryId, folderEntryId);
+                                Logger.Error("[OUTLOOK EVENT ERROR] Exception in ItemAdd handler: " + ex.Message, ex);
                             }
-                        }
-                    };
+                        };
 
-                    items.ItemChange += (itemObj) =>
-                    {
-                        // Requirement 3 & 5: Non-blocking & Outbox guard
-                        if (IsOutboxFolder(storeId, folderEntryId))
+                        OutlookInterop.ItemsEvents_ItemChangeEventHandler changeHandler = (itemObj) =>
                         {
-                            Logger.Info($"[OUTLOOK EVENT] Type=ItemChange Folder=Outbox Action=SKIPPED_OUTBOX");
-                            return;
-                        }
-
-                        if (itemObj is OutlookInterop.MailItem mailItem)
-                        {
-                            string entryId = string.Empty;
                             try
                             {
-                                entryId = mailItem.EntryID ?? string.Empty;
-                            }
-                            catch { }
+                                // Requirement 3 & 5: Non-blocking & Outbox guard
+                                if (IsOutboxFolder(storeId, folderEntryId))
+                                {
+                                    Logger.Info($"[OUTLOOK EVENT] Type=ItemChange Folder=Outbox Action=SKIPPED_OUTBOX");
+                                    return;
+                                }
 
-                            if (!string.IsNullOrEmpty(entryId))
+                                if (itemObj is OutlookInterop.MailItem mailItem)
+                                {
+                                    string entryId = string.Empty;
+                                    try
+                                    {
+                                        entryId = mailItem.EntryID ?? string.Empty;
+                                    }
+                                    catch { }
+
+                                    if (!string.IsNullOrEmpty(entryId))
+                                    {
+                                        string folderLabel = isSentItems ? "Sent Items" : folderName;
+                                        Logger.Info($"[OUTLOOK EVENT] Type=ItemChange Folder={folderLabel} EntryId={entryId} Action=QUEUED_FOR_INDEX");
+                                        _onItemChangedCallback?.Invoke(storeId, entryId, folderEntryId);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
                             {
-                                string folderLabel = isSentItems ? "Sent Items" : folderName;
-                                Logger.Info($"[OUTLOOK EVENT] Type=ItemChange Folder={folderLabel} EntryId={entryId} Action=QUEUED_FOR_INDEX");
-                                _onItemChangedCallback?.Invoke(storeId, entryId, folderEntryId);
+                                Logger.Error("[OUTLOOK EVENT ERROR] Exception in ItemChange handler: " + ex.Message, ex);
                             }
+                        };
+
+                        if (SafeSubscribeItems(items, addHandler, changeHandler, out var sub) && sub != null)
+                        {
+                            _subscribedItemsList.Add(sub);
                         }
-                    };
-
-                    items.ItemRemove += () =>
+                    }
+                    catch (Exception ex)
                     {
-                        // Item removed event handling
-                    };
-
-                    _subscribedItemsList.Add(items);
+                        Logger.Warn($"[OUTLOOK EVENT] Folder event subscription failed for '{folderName}': {ex.Message}");
+                    }
                 }
 
                 subFolders = folder.Folders;
@@ -1312,9 +1496,24 @@ namespace FastMailSearch.Infrastructure.Outlook
 
         public void UnsubscribeFromEvents()
         {
+            UnsubscribeFromEvents(TimeSpan.FromSeconds(3));
+        }
+
+        public void UnsubscribeFromEvents(TimeSpan timeout)
+        {
+            if (timeout <= TimeSpan.Zero)
+            {
+                UnsubscribeFromEventsInternal();
+                return;
+            }
+
             try
             {
-                _staThread.Invoke(() => UnsubscribeFromEventsInternal());
+                if (!_staThread.TryInvoke(() => UnsubscribeFromEventsInternal(), timeout))
+                {
+                    Logger.Warn("[OUTLOOK ADAPTER] UnsubscribeFromEvents timed out on STA thread; executing inline.");
+                    UnsubscribeFromEventsInternal();
+                }
             }
             catch (ObjectDisposedException)
             {
@@ -1324,14 +1523,17 @@ namespace FastMailSearch.Infrastructure.Outlook
 
         private void UnsubscribeFromEventsInternal()
         {
-            foreach (var items in _subscribedItemsList)
-            {
-                var tmp = items;
-                ComReleaseHelper.Release(ref tmp!);
-            }
-            _subscribedItemsList.Clear();
             _onItemChangedCallback = null;
             _onItemRemovedCallback = null;
+            foreach (var sub in _subscribedItemsList)
+            {
+                try
+                {
+                    sub.UnsubscribeAndRelease();
+                }
+                catch { }
+            }
+            _subscribedItemsList.Clear();
         }
 
         private EmailDocument? ExtractEmailDocument(OutlookInterop.MailItem mailItem, string storeId, string folderEntryId, string folderName)
@@ -1459,11 +1661,17 @@ namespace FastMailSearch.Infrastructure.Outlook
         private bool _disposed;
         public void Dispose()
         {
+            Dispose(TimeSpan.FromSeconds(3));
+        }
+
+        public void Dispose(TimeSpan timeout)
+        {
             if (_disposed) return;
             _disposed = true;
             ResetCursorSession();
-            UnsubscribeFromEvents();
-            _staThread.Dispose();
+            UnsubscribeFromEvents(timeout);
+            int remainingMs = (int)Math.Max(0, timeout.TotalMilliseconds);
+            _staThread.Dispose(remainingMs);
         }
     }
 }

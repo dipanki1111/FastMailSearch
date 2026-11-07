@@ -15,10 +15,17 @@ namespace FastMailSearch.OutlookAddIn.Ribbon
 
         public string GetCustomUI(string ribbonID)
         {
-            Logger.Info($"[RIBBON] FastMailRibbon.GetCustomUI requested for RibbonID='{ribbonID}'");
-            if (ribbonID == "Microsoft.Outlook.Explorer")
+            try
             {
-                return GetResourceText("FastMailSearch.OutlookAddIn.Ribbon.FastMailRibbon.xml");
+                Logger.Info($"[RIBBON] FastMailRibbon.GetCustomUI requested for RibbonID='{ribbonID}'");
+                if (ribbonID == "Microsoft.Outlook.Explorer")
+                {
+                    return GetResourceText("FastMailSearch.OutlookAddIn.Ribbon.FastMailRibbon.xml");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("[RIBBON ERROR] FastMailRibbon.GetCustomUI failed", ex);
             }
             return string.Empty;
         }
@@ -26,22 +33,43 @@ namespace FastMailSearch.OutlookAddIn.Ribbon
         [ComVisible(true)]
         public void Ribbon_Load(OfficeCore.IRibbonUI ribbonUI)
         {
-            Logger.Info("[RIBBON] Ribbon_Load callback invoked by Outlook on FastMailRibbon.");
-            _ribbon = ribbonUI;
+            try
+            {
+                Logger.Info("[RIBBON] Ribbon_Load callback invoked by Outlook on FastMailRibbon.");
+                _ribbon = ribbonUI;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("[RIBBON ERROR] Ribbon_Load failed", ex);
+            }
         }
 
         [ComVisible(true)]
         public void OnOpenSearchWindowClicked(OfficeCore.IRibbonControl control)
         {
-            Logger.Info("[RIBBON] FastMail Search button clicked");
-            ThisAddIn.LaunchOrActivateUIProcess();
+            try
+            {
+                Logger.Info("[RIBBON] FastMail Search button clicked");
+                ThisAddIn.LaunchOrActivateUIProcess();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("[RIBBON ERROR] OnOpenSearchWindowClicked failed", ex);
+            }
         }
 
         [ComVisible(true)]
         public void OnBackfillActiveStoreClicked(OfficeCore.IRibbonControl control)
         {
-            Logger.Info("[RIBBON] Backfill POP Mailbox button clicked");
-            ThisAddIn.Instance?.StartInProcessBackfill();
+            try
+            {
+                Logger.Info("[RIBBON] Backfill POP Mailbox button clicked");
+                ThisAddIn.Instance?.StartInProcessBackfill();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("[RIBBON ERROR] OnBackfillActiveStoreClicked failed", ex);
+            }
         }
 
         private static string GetResourceText(string resourceName)

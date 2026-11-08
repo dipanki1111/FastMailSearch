@@ -146,6 +146,7 @@ namespace FastMailSearch.UI.ViewModels
         public IEmailRepository Repository => _repository;
         public IIndexerService IndexerService => _indexerService;
         private readonly DatabaseConnectionFactory? _dbFactory;
+        public Action<string, string>? MessageBoxAction { get; set; }
 
         public SearchViewModel(SearchService searchService, IEmailRepository repository, IIndexerService indexerService, IOutlookAdapter outlookAdapter, ILicensingService? licensingService = null, DatabaseConnectionFactory? dbFactory = null)
         {
@@ -597,16 +598,27 @@ namespace FastMailSearch.UI.ViewModels
                 FastMailSearch.Infrastructure.Logging.Logger.Info($"[SEARCH] Subject: {item.Subject}");
                 FastMailSearch.Infrastructure.Logging.Logger.Info($"[SEARCH] StoreId: {item.StoreId}");
                 FastMailSearch.Infrastructure.Logging.Logger.Info($"[SEARCH] EntryId: {item.EntryId}");
+
+                if (!_outlookAdapter.IsOutlookAvailable())
+                {
+                    FastMailSearch.Infrastructure.Logging.Logger.Warn($"[SEARCH] OpenEmail aborted: Outlook is not running.");
+                    ShowAlert(
+                        "Outlook is not currently running. Please open Outlook to view this email.",
+                        "FastMail Search",
+                        MessageBoxImage.Information);
+                    return;
+                }
+
                 FastMailSearch.Infrastructure.Logging.Logger.Info($"[SEARCH] Calling Outlook GetItemFromID");
 
                 bool opened = _outlookAdapter.OpenEmailInOutlook(item.StoreId, item.EntryId);
                 if (!opened)
                 {
-                    FastMailSearch.Infrastructure.Logging.Logger.Warn($"[SEARCH] Email item unavailable in Outlook.");
-                    MessageBox.Show("This email is no longer available in Outlook.", "FastMail Search", MessageBoxButton.OK, MessageBoxImage.Information);
-                    _ = _repository.DeleteEmailAsync(item.StoreId, item.EntryId);
-                    SearchResults.Remove(item);
-                    if (TotalResultsCount > 0) TotalResultsCount--;
+                    FastMailSearch.Infrastructure.Logging.Logger.Warn($"[SEARCH] Unable to open email item in Outlook. StoreId: {item.StoreId}, EntryId: {item.EntryId}");
+                    ShowAlert(
+                        "Unable to open this email in Outlook. The item may have been moved, deleted, or is temporarily inaccessible.",
+                        "FastMail Search",
+                        MessageBoxImage.Warning);
                 }
                 else
                 {
@@ -617,6 +629,18 @@ namespace FastMailSearch.UI.ViewModels
             catch (Exception ex)
             {
                 FastMailSearch.Infrastructure.Logging.Logger.Error($"[SEARCH ERROR] Exception in OpenEmail", ex);
+            }
+        }
+
+        private void ShowAlert(string message, string title, MessageBoxImage icon = MessageBoxImage.Information)
+        {
+            if (MessageBoxAction != null)
+            {
+                MessageBoxAction(message, title);
+            }
+            else
+            {
+                MessageBox.Show(message, title, MessageBoxButton.OK, icon);
             }
         }
 

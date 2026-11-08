@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -1304,10 +1304,35 @@ namespace FastMailSearch.Infrastructure.Outlook
                             mailItem.Display(false); // Display non-modally
                             return true;
                         }
+                        else if (itemObj is OutlookInterop.MeetingItem meetingItem)
+                        {
+                            meetingItem.Display(false); // Display non-modally
+                            return true;
+                        }
+                        else if (itemObj is OutlookInterop.ReportItem reportItem)
+                        {
+                            reportItem.Display(false); // Display non-modally
+                            return true;
+                        }
+                        else if (itemObj is OutlookInterop.AppointmentItem appointmentItem)
+                        {
+                            appointmentItem.Display(false); // Display non-modally
+                            return true;
+                        }
+                        else if (itemObj is OutlookInterop.PostItem postItem)
+                        {
+                            postItem.Display(false); // Display non-modally
+                            return true;
+                        }
+                        else if (itemObj != null)
+                        {
+                            Logger.Warn($"[OUTLOOK] Item {entryId} is of unsupported Outlook type '{itemObj.GetType().FullName}' and cannot be displayed.");
+                            return false;
+                        }
                     }
                     catch (COMException comEx)
                     {
-                        Logger.Warn($"COM error opening item {entryId}: {comEx.Message}");
+                        Logger.Warn($"COM error opening item {entryId}: {comEx.Message} (HRESULT: 0x{comEx.ErrorCode:X8})");
                         return false;
                     }
                     catch (Exception ex)

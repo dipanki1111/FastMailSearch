@@ -68,7 +68,7 @@ namespace FastMailSearch.UI.Views
                         TxtFtsStatus.Text = env.IsFts5Available ? "Available" : "Not Available";
                         TxtAboutBitness.Text = $"{env.OutlookBitness} (Office) / {env.OsArchitecture} (OS)";
                         TxtAboutSqliteVer.Text = env.SqliteVersion;
-                        TxtAboutVersion.Text = typeof(DiagnosticsWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.6";
+                        TxtAboutVersion.Text = typeof(DiagnosticsWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.7";
 
                         TxtEnvInfo.Text = $"OS: {env.OsVersion} ({env.OsArchitecture})\n" +
                                           $"Database: {env.DatabasePath} ({env.DatabaseSizeMb:F2} MB)\n" +

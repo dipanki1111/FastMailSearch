@@ -229,7 +229,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Version:" FontWeight="SemiBold" Foreground="#9CA3AF" Margin="0,3"/>
-                                <TextBlock x:Name="TxtAboutVersion" Grid.Row="0" Grid.Column="1" Text="1.0.6" FontWeight="Bold" Foreground="#F3F4F6" Margin="0,3"/>
+                                <TextBlock x:Name="TxtAboutVersion" Grid.Row="0" Grid.Column="1" Text="1.0.7" FontWeight="Bold" Foreground="#F3F4F6" Margin="0,3"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Architecture:" FontWeight="SemiBold" Foreground="#9CA3AF" Margin="0,3"/>
                                 <TextBlock x:Name="TxtAboutBitness" Grid.Row="1" Grid.Column="1" Text="x64 / x86" Foreground="#F3F4F6" Margin="0,3"/>
@@ -244,7 +244,7 @@
                                 <TextBlock Grid.Row="4" Grid.Column="1" Text="v1.0 (FTS5 + Composite Key)" Foreground="#F3F4F6" Margin="0,3"/>
 
                                 <TextBlock Grid.Row="5" Grid.Column="0" Text="Indexer Version:" FontWeight="SemiBold" Foreground="#9CA3AF" Margin="0,3"/>
-                                <TextBlock Grid.Row="5" Grid.Column="1" Text="1.0.6 (Safe Mode &amp; Incremental)" Foreground="#F3F4F6" Margin="0,3"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="1.0.7 (Safe Mode &amp; Incremental)" Foreground="#F3F4F6" Margin="0,3"/>
                             </Grid>
                         </Border>
 

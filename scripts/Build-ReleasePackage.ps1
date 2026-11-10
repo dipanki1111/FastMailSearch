@@ -15,9 +15,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# 1. Strict Version Validation (v1.0.6 isolated release workflow)
-if ($Version -ne "1.0.6") {
-    Write-Error "PACKAGING ABORTED: This safety-hardened workflow strictly mandates -Version '1.0.6'. Received: '$Version'."
+# 1. Strict Version Validation (v1.0.6 / v1.0.7 isolated release workflow)
+if ($Version -ne "1.0.6" -and $Version -ne "1.0.7") {
+    Write-Error "PACKAGING ABORTED: This safety-hardened workflow mandates -Version '1.0.6' or '1.0.7'. Received: '$Version'."
     exit 1
 }
 
@@ -200,7 +200,7 @@ if (Test-Path $sharedReleaseSha) {
 }
 
 # 3. Path Validation Guard & Workspace Initialization
-$expectedWorkspace = [System.IO.Path]::GetFullPath((Join-Path $scratchDir "release-v1.0.6"))
+$expectedWorkspace = [System.IO.Path]::GetFullPath((Join-Path $scratchDir "release-v$Version"))
 $resolvedWorkspace = [System.IO.Path]::GetFullPath($workspaceDir)
 
 if (-not $resolvedWorkspace.Equals($expectedWorkspace, [StringComparison]::OrdinalIgnoreCase)) {

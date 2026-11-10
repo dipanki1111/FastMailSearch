@@ -1,6 +1,6 @@
 # FastMail Search
 
-[![Latest Release](https://img.shields.io/badge/Release-v1.0.6-0078D4)](https://github.com/dipanki1111/FastMailSearch/releases/tag/v1.0.6)
+[![Latest Release](https://img.shields.io/badge/Release-v1.0.7-0078D4)](https://github.com/dipanki1111/FastMailSearch/releases/tag/v1.0.7)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D4)](#system-requirements)
 [![Outlook](https://img.shields.io/badge/Outlook-Classic%20Desktop%20(2016--365)-0078D4)](#system-requirements)
 [![Tests](https://img.shields.io/badge/Tests-661%20Passed%20%7C%200%20Failed-success)](#run-automated-tests)
@@ -63,6 +63,7 @@ FastMailSearch/
 ├── Directory.Build.props              # Harmonized assembly version & build metadata
 ├── LICENSE                            # Proprietary software license agreement
 ├── SECURITY.md                        # Security policy & vulnerability reporting guide
+├── CHANGELOG.md                       # Semantic versioned project release changelog
 ├── THIRD-PARTY-NOTICES.md             # Third-party open-source dependency notices
 │
 ├── src/
@@ -91,8 +92,22 @@ FastMailSearch/
 │   └── *.html                         # Documentation pages (FAQ, install, support, smartscreen)
 │
 └── docs/
+    ├── USER_GUIDE.md                  # Comprehensive user operation & troubleshooting guide
+    ├── KNOWN_LIMITATIONS.md           # Platform compatibility & queue count metrics
+    ├── INSTALLATION_AND_UPGRADE.md    # Per-user setup, automated backup & rollback guide
+    ├── RELEASE_READINESS_CHECKLIST.md # Release verification checklist & invariant audit
     └── FINAL_VERIFICATION.md          # Regression test & verification log for pagination hardening
 ```
+
+---
+
+## Documentation & User Guides
+
+- **[User Guide](docs/USER_GUIDE.md)**: First launch, Outlook ribbon integration, search syntax, and status indicator guide.
+- **[Changelog](CHANGELOG.md)**: Full release history and version notes for v1.0.7, v1.0.6, and v1.0.0.
+- **[Known Limitations](docs/KNOWN_LIMITATIONS.md)**: Platform support boundaries and queue metric reconciliation notes.
+- **[Installation & Upgrade Guide](docs/INSTALLATION_AND_UPGRADE.md)**: Per-user setup, automated pre-upgrade backups, and rollback.
+- **[Release Readiness Checklist](docs/RELEASE_READINESS_CHECKLIST.md)**: Cryptographic verification, SHA-256 hashes, and invariant audit.
 
 ---
 
@@ -131,9 +146,9 @@ To run integration tests against a synthetic test store without touching persona
 ```
 
 ### Build the Standalone Release Package
-To package the standalone release installer (`FastMailSearch-v1.0.6-Store-Setup.exe`):
+To package the standalone release installer (`FastMailSearch-v1.0.7-Store-Setup.exe`):
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-ReleasePackage.ps1 -Version 1.0.6
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-ReleasePackage.ps1 -Version 1.0.7
 ```
 
 ---
@@ -161,4 +176,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Build-ReleasePackage.ps1 -Ver
 - **Support Contact**: [developer.diptesh@gmail.com](mailto:developer.diptesh@gmail.com)
 - **Official Website**: [https://fastmailsearch.com](https://fastmailsearch.com) (or browse local `/website/` documentation)
 - **GitHub Repository**: [https://github.com/dipanki1111/FastMailSearch](https://github.com/dipanki1111/FastMailSearch)
-- **Latest Release**: [v1.0.6 (Release Notes)](https://github.com/dipanki1111/FastMailSearch/releases/tag/v1.0.6)
+- **Latest Release**: [v1.0.7 (Release Notes)](https://github.com/dipanki1111/FastMailSearch/releases/tag/v1.0.7)

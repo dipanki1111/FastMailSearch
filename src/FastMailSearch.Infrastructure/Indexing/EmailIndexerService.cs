@@ -237,9 +237,13 @@ namespace FastMailSearch.Infrastructure.Indexing
                 int remainingQueue = Math.Max(_incrementalQueue.Count, _pendingDbCount);
                 double pct = _totalItems > 0 ? Math.Min(100.0, Math.Round((double)_processedItems / _totalItems * 100.0, 2)) : 0.0;
                 string msg;
-                if (remainingQueue > 0 && _status != IndexerStatus.Error && _status != IndexerStatus.Cancelled && _status != IndexerStatus.Paused)
+                if (remainingQueue > 0 && _status == IndexerStatus.Indexing)
                 {
                     msg = $"🔵 Updating • {remainingQueue:N0} email(s) remaining";
+                }
+                else if (remainingQueue > 0 && _status == IndexerStatus.Idle)
+                {
+                    msg = $"⏸ Idle — Queue Paused ({remainingQueue:N0} pending)";
                 }
                 else if (_status == IndexerStatus.Indexing)
                 {
@@ -308,6 +312,7 @@ namespace FastMailSearch.Infrastructure.Indexing
                     }
                     Logger.Info($"[INDEX] Startup check completed. Current DB indexed count: {indexedCount:N0} emails (Target DB: '{_repository.DatabasePath}').");
                     await _repository.RecoverStaleProcessingChangesAsync();
+                    _pendingDbCount = await _repository.GetPendingChangesCountAsync();
                     if (startProcessing && IsLicensingEligible())
                     {
                         _ = TriggerIncrementalProcessingAsync();
@@ -1418,6 +1423,7 @@ namespace FastMailSearch.Infrastructure.Indexing
             {
                 _incrementalCts = new CancellationTokenSource();
                 CurrentStatus = IndexerStatus.Indexing;
+                _currentOperation = "Processing Pending Queue";
                 await ProcessIncrementalQueueInternalAsync(_incrementalCts.Token);
             }
             catch (OperationCanceledException)
@@ -1429,6 +1435,7 @@ namespace FastMailSearch.Infrastructure.Indexing
                 if (!_isRebuilding)
                 {
                     CurrentStatus = IndexerStatus.Idle;
+                    _currentOperation = "Idle";
                 }
                 _incrementalProcessingLock.Release();
             }
@@ -1718,10 +1725,15 @@ namespace FastMailSearch.Infrastructure.Indexing
             string msg;
             IndexerStatus st;
 
-            if (remainingQueue > 0)
+            if (remainingQueue > 0 && CurrentStatus == IndexerStatus.Indexing)
             {
                 msg = $"🔵 Updating • {remainingQueue:N0} email(s) remaining";
                 st = IndexerStatus.Indexing;
+            }
+            else if (remainingQueue > 0)
+            {
+                msg = $"⏸ Idle — Queue Paused ({remainingQueue:N0} pending)";
+                st = IndexerStatus.Idle;
             }
             else if (CurrentStatus == IndexerStatus.Indexing)
             {
@@ -1763,8 +1775,7 @@ namespace FastMailSearch.Infrastructure.Indexing
             
             if (remainingQueue > 0 && status == IndexerStatus.Idle)
             {
-                displayMessage = $"🔵 Updating • {remainingQueue:N0} email(s) remaining";
-                status = IndexerStatus.Indexing; // Force indexing status if there's queue
+                displayMessage = $"⏸ Idle — Queue Paused ({remainingQueue:N0} pending)";
             }
 
             CurrentMetadata.TotalItemsToIndex = total;

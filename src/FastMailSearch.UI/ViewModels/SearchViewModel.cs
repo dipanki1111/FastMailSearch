@@ -525,14 +525,35 @@ namespace FastMailSearch.UI.ViewModels
             }
         }
 
+        public static Action<Action>? DispatcherOverride { get; set; }
+
         private static void DispatchOnUI(Action action)
+        {
+            if (DispatcherOverride != null)
+            {
+                DispatcherOverride(action);
+                return;
+            }
+
+            DispatchViaWpf(action);
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static void DispatchViaWpf(Action action)
         {
             try
             {
                 var disp = Application.Current?.Dispatcher;
                 if (disp != null && !disp.HasShutdownStarted)
                 {
-                    disp.BeginInvoke(action);
+                    if (disp.CheckAccess())
+                    {
+                        action();
+                    }
+                    else
+                    {
+                        disp.BeginInvoke(action);
+                    }
                 }
                 else
                 {
@@ -812,7 +833,7 @@ namespace FastMailSearch.UI.ViewModels
         }
 
         private System.Timers.Timer? _livePollingTimer;
-        private bool _isPollingStatus = false;
+        private int _isPollingStatusInt = 0;
         private IndexerProgressEventArgs? _latestProgressArgs;
         private int _isProgressDispatchScheduled = 0;
 
@@ -905,7 +926,14 @@ namespace FastMailSearch.UI.ViewModels
             }
             else
             {
-                StatusText = $"🟢 Up to date ({e.ProcessedItems:N0} emails indexed)";
+                if (e.PendingQueueCount > 0 && e.Status == IndexerStatus.Idle)
+                {
+                    StatusText = $"⏸ Idle — Queue Paused ({e.PendingQueueCount:N0} pending)";
+                }
+                else
+                {
+                    StatusText = $"🟢 Up to date ({e.ProcessedItems:N0} emails indexed)";
+                }
             }
         }
 
@@ -916,8 +944,8 @@ namespace FastMailSearch.UI.ViewModels
 
             Task.Run(async () =>
             {
-                var meta = await _repository.GetIndexMetadataAsync();
-                int count = meta.TotalEmailsIndexed > 0 ? meta.TotalEmailsIndexed : status.TotalItems;
+                var summary = await HealthService.GetHealthSummaryAsync();
+                int count = summary.IndexedEmailCount;
                 DispatchOnUI(() =>
                 {
                     if (IndexTotalItems == 0 && count > 0)
@@ -927,7 +955,18 @@ namespace FastMailSearch.UI.ViewModels
                     }
                     if (!IsIndexing)
                     {
-                        StatusText = $"🟢 Up to date ({count:N0} emails indexed)";
+                        if (summary.PendingQueueCount > 0 && summary.CurrentlyProcessingCount == 0 && !_indexerService.IsIndexing)
+                        {
+                            StatusText = $"⏸ Idle — Queue Paused ({summary.PendingQueueCount:N0} pending)";
+                        }
+                        else if (summary.PendingQueueCount > 0 && (summary.CurrentlyProcessingCount > 0 || _indexerService.IsIndexing))
+                        {
+                            StatusText = $"🔵 Updating • {summary.PendingQueueCount:N0} email(s) remaining";
+                        }
+                        else
+                        {
+                            StatusText = $"🟢 Up to date ({count:N0} emails indexed)";
+                        }
                     }
                 });
             });
@@ -935,8 +974,7 @@ namespace FastMailSearch.UI.ViewModels
 
         private async Task PollLiveStatusAsync()
         {
-            if (_isPollingStatus) return;
-            _isPollingStatus = true;
+            if (Interlocked.CompareExchange(ref _isPollingStatusInt, 1, 0) != 0) return;
             try
             {
                 // If local indexer is actively indexing, its own ProgressChanged event handles UI updates
@@ -966,7 +1004,14 @@ namespace FastMailSearch.UI.ViewModels
 
                         if (summary.PendingQueueCount > 0)
                         {
-                            StatusText = $"🔵 Updating • {summary.PendingQueueCount:N0} email(s) remaining";
+                            if (summary.CurrentlyProcessingCount > 0 || _indexerService.IsIndexing)
+                            {
+                                StatusText = $"🔵 Updating • {summary.PendingQueueCount:N0} email(s) remaining";
+                            }
+                            else
+                            {
+                                StatusText = $"⏸ Idle — Queue Paused ({summary.PendingQueueCount:N0} pending)";
+                            }
                         }
                         else if (summary.FailedItemCount > 0)
                         {
@@ -994,7 +1039,7 @@ namespace FastMailSearch.UI.ViewModels
             }
             finally
             {
-                _isPollingStatus = false;
+                Interlocked.Exchange(ref _isPollingStatusInt, 0);
             }
         }
     }

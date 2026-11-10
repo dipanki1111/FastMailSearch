@@ -136,11 +136,12 @@ namespace FastMailSearch.Core.Tests
             Assert.Equal(IndexerHealth.Healthy, summary.HealthState);
             Assert.Contains("Ready", summary.StatusState);
 
-            // When queue has items, it accurately reports queue processing
+            // Stage 7AL-3: When queue has items but indexer is idle, accurately reports Queue Paused
             await _repository.EnqueuePendingChangeAsync("S1", "E1", "Add", "F1");
             summary = await health.GetHealthSummaryAsync();
-            Assert.Equal("Processing Pending Queue", summary.CurrentOperation);
-            Assert.Equal(IndexerHealth.Updating, summary.HealthState);
+            Assert.Equal("Idle — Queue Paused", summary.CurrentOperation);
+            Assert.Equal(IndexerHealth.Paused, summary.HealthState);
+            Assert.Contains("Idle — Queue Paused", summary.StatusState);
         }
 
         [Fact]

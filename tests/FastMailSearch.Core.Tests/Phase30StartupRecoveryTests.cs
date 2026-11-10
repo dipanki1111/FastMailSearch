@@ -174,8 +174,9 @@ namespace FastMailSearch.Core.Tests
             var health = new IndexHealthService(_repository, indexer, outlook, null);
 
             var summary = await health.GetHealthSummaryAsync();
-            Assert.Equal(IndexerHealth.Updating, summary.HealthState);
-            Assert.Contains("1,500 email(s) remaining", summary.StatusState);
+            Assert.Equal(IndexerHealth.Paused, summary.HealthState);
+            Assert.Equal(1500, summary.PendingQueueCount);
+            Assert.Contains("1,500 pending", summary.StatusState);
         }
         
         [Fact]

@@ -123,25 +123,49 @@ namespace FastMailSearch.Infrastructure.Services
             {
                 healthState = IndexerHealth.Updating;
                 currentOperation = _indexerService.CurrentOperation ?? "Indexing";
-                double pct = _indexerService.TotalItems > 0 ? (double)_indexerService.ProcessedItems / _indexerService.TotalItems * 100.0 : 0.0;
-                int remaining = Math.Max(0, _indexerService.TotalItems - _indexerService.ProcessedItems);
-                statusState = $"🔵 Indexing: {_indexerService.ProcessedItems:N0} / {_indexerService.TotalItems:N0} ({pct:F0}%) • {remaining:N0} remaining";
+                if (string.Equals(currentOperation, "Processing Pending Queue", StringComparison.OrdinalIgnoreCase) && pendingCount > 0)
+                {
+                    statusState = $"🔵 Updating • {pendingCount:N0} email(s) remaining";
+                }
+                else
+                {
+                    double pct = _indexerService.TotalItems > 0 ? (double)_indexerService.ProcessedItems / _indexerService.TotalItems * 100.0 : 0.0;
+                    int remaining = Math.Max(0, _indexerService.TotalItems - _indexerService.ProcessedItems);
+                    statusState = $"🔵 Indexing: {_indexerService.ProcessedItems:N0} / {_indexerService.TotalItems:N0} ({pct:F0}%) • {remaining:N0} remaining";
+                }
             }
             else if (isCrossProcessIndexing)
             {
                 healthState = IndexerHealth.Updating;
                 currentOperation = activeOperation ?? "Backfilling Active Store (in Outlook)";
-                int totalDisc = activeTotal > 0 ? activeTotal : relevantCheckpoints.Sum(f => f.TotalItems);
-                int proc = activeProcessed > 0 ? activeProcessed : relevantCheckpoints.Sum(f => f.ProcessedOffset);
-                double pct = totalDisc > 0 ? (double)proc / totalDisc * 100.0 : 0.0;
-                int remaining = Math.Max(0, totalDisc - proc);
-                statusState = $"🔵 Backfill in Progress • {proc:N0} / {totalDisc:N0} ({pct:F0}%) • {remaining:N0} remaining";
+                if (string.Equals(currentOperation, "Processing Pending Queue", StringComparison.OrdinalIgnoreCase) && pendingCount > 0)
+                {
+                    statusState = $"🔵 Updating • {pendingCount:N0} email(s) remaining";
+                }
+                else
+                {
+                    int totalDisc = activeTotal > 0 ? activeTotal : relevantCheckpoints.Sum(f => f.TotalItems);
+                    int proc = activeProcessed > 0 ? activeProcessed : relevantCheckpoints.Sum(f => f.ProcessedOffset);
+                    double pct = totalDisc > 0 ? (double)proc / totalDisc * 100.0 : 0.0;
+                    int remaining = Math.Max(0, totalDisc - proc);
+                    statusState = $"🔵 Backfill in Progress • {proc:N0} / {totalDisc:N0} ({pct:F0}%) • {remaining:N0} remaining";
+                }
             }
             else if (pendingCount > 0)
             {
-                healthState = IndexerHealth.Updating;
-                currentOperation = "Processing Pending Queue";
-                statusState = $"🔵 Updating • {pendingCount:N0} email(s) remaining";
+                bool isWorkerActive = _indexerService.IsIndexing || isCrossProcessIndexing;
+                if (isWorkerActive)
+                {
+                    healthState = IndexerHealth.Updating;
+                    currentOperation = "Processing Pending Queue";
+                    statusState = $"🔵 Updating • {pendingCount:N0} email(s) remaining";
+                }
+                else
+                {
+                    healthState = IndexerHealth.Paused;
+                    currentOperation = "Idle — Queue Paused";
+                    statusState = $"⏸ Idle — Queue Paused ({pendingCount:N0} pending)";
+                }
             }
             else if (failedCount > 0)
             {
